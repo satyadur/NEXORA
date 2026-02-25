@@ -1,0 +1,118 @@
+# === Dependencies ===
+node_modules/
+/.pnp
+.pnp.js
+.pnp.cjs
+.pnp.loader.mjs
+.yarn/install-state.gz
+
+# === Build / Output ===
+/dist
+/build
+/out
+/.next
+/.nuxt
+/.output
+/.vercel
+/.serverless
+
+# === Logs ===
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# === Runtime data ===
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# === Coverage directory used by tools like Jest / NYC ===
+coverage
+*.lcov
+.nyc_output
+
+# === Secret / Environment files ===
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# === Database files ===
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+
+# === Temp files ===
+tmp/
+temp/
+*.tmp
+*.temp
+.DS_Store
+
+# === IDE / Editors ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+.vs/
+
+# === OS Generated Files ===
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# === Testing ===
+/coverage
+.nyc_output
+jest.config.js
+test-results/
+junit.xml
+
+# === Misc ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+
+# === Diagnostic reports (Node.js) ===
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# === Optional (Uncomment if using specific tools) ===
+
+# # Redis dump file
+# dump.rdb
+
+# # MongoDB dump folder
+# dump/
+
+# # Docker
+# docker-compose.override.yml
+
+# # Specific to NestJS
+# /dist
+# /node_modules
+
+# # Specific to Prisma
+# /prisma/*.db
+# /prisma/*.db-journal
