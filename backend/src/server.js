@@ -1,4 +1,6 @@
 import dotenv from "dotenv";
+import multer from "multer";
+
 dotenv.config();
 
 import app from "./app.js";
