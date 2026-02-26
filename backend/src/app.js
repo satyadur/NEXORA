@@ -30,4 +30,11 @@ app.use("/api/student", studentRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/courses", courseRoutes);
 
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "NEXORA Backend is running 🚀"
+  });
+});
+
 export default app;
