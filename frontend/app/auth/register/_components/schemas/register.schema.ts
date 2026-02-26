@@ -3,58 +3,52 @@ import { z } from "zod";
 // Phone validation
 const phoneRegex = /^[0-9]{10}$/;
 
-// Education schema
-export const educationSchema = z.object({
-  degree: z.string().min(1, "Degree is required"),
-  specialization: z.string().min(1, "Specialization is required"),
-  university: z.string().optional(),
-  yearOfPassing: z.string().optional(),
-  percentage: z.string().optional(),
-});
-
 // Skill schema
 export const skillSchema = z.object({
   name: z.string().min(1, "Skill name is required"),
   level: z.enum(["Beginner", "Intermediate", "Advanced", "Expert"]),
 });
 
-// Experience schema
-export const experienceSchema = z.object({
-  company: z.string().optional(),
-  position: z.string().optional(),
-  duration: z.string().optional(),
+// Course enrollment schema
+export const courseEnrollmentSchema = z.object({
+  courseId: z.string(),
+  courseCode: z.string(),
+  courseName: z.string(),
+  status: z.enum(["enrolled", "in_progress", "completed", "dropped"]).default("enrolled"),
 });
 
-// Base schema for all users
 export const registerSchema = z.object({
   // Step 1: Basic Info
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   phone: z.string().regex(phoneRegex, "Phone number must be 10 digits").optional().nullable(),
-dateOfBirth: z
-  .string()
-  .min(1, "Date of birth is required")
-  .refine((val) => !isNaN(Date.parse(val)), {
-    message: "Invalid date format",
-  })
-  .refine((val) => {
-    const today = new Date();
-    const dob = new Date(val);
-    const age = today.getFullYear() - dob.getFullYear();
-    const monthDiff = today.getMonth() - dob.getMonth();
+  dateOfBirth: z
+    .string()
+    .min(1, "Date of birth is required")
+    .refine((val) => !isNaN(Date.parse(val)), {
+      message: "Invalid date format",
+    })
+    .refine((val) => {
+      const today = new Date();
+      const dob = new Date(val);
+      const age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
 
-    return (
-      age > 18 ||
-      (age === 18 && monthDiff >= 0)
-    );
-  }, {
-    message: "You must be at least 18 years old",
-  }),
-    gender: z.enum(["Male", "Female", "Other"]).optional().nullable(),
+      return (
+        age > 18 ||
+        (age === 18 && monthDiff >= 0)
+      );
+    }, {
+      message: "You must be at least 18 years old",
+    }),
+  gender: z.enum(["Male", "Female", "Other"]).optional().nullable(),
   
-  // Step 2: Role
-  role: z.enum(["STUDENT", "TEACHER"]),
+  // Role is always STUDENT
+  role: z.literal("STUDENT").default("STUDENT"),
+  
+  // Package selection
+  selectedPackage: z.string().min(1, "Please select a package"),
   
   // Student fields
   enrollmentNumber: z.string().optional().nullable(),
@@ -63,19 +57,10 @@ dateOfBirth: z
   cgpa: z.string().optional().nullable(),
   skills: z.array(skillSchema).default([]),
   
-  // Teacher fields
-  department: z.string().optional(),
-  designation: z.string().optional(),
-  employeeId: z.string().optional().nullable(),
-  joiningDate: z.string().optional().nullable(),
+  // Enrolled Courses - NEW
+  enrolledCourses: z.array(courseEnrollmentSchema).default([]),
   
-  // Education (can be array for multiple degrees)
-  education: z.array(educationSchema).default([]),
-  
-  // Experience (for teachers)
-  experience: z.array(experienceSchema).default([]),
-  
-  // Step 3: Additional Info
+  // Step 5: Additional Info
   jobPreferences: z.object({
     preferredRoles: z.string().optional().default(""),
     preferredLocations: z.string().optional().default(""),

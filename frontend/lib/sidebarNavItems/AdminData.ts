@@ -105,20 +105,20 @@ export const adminData: SidebarData = {
         },
       ],
     },
-    {
-      title: "Documents",
-      url: "/admin/documents",
-      icon: IconFileText,
-    },
+    // {
+    //   title: "Documents",
+    //   url: "/admin/documents",
+    //   icon: IconFileText,
+    // },
     {
       title: "Attendance",
       url: "/admin/attendance",
       icon: IconCalendarStats,
     },
-    {
-      title: "Settings",
-      url: "/admin/settings",
-      icon: IconSettings,
-    },
+    // {
+    //   title: "Settings",
+    //   url: "/admin/settings",
+    //   icon: IconSettings,
+    // },
   ],
 };

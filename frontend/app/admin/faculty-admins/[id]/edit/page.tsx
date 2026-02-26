@@ -11,10 +11,32 @@ import {
   ArrowLeft, 
   Loader2, 
   Save,
+  UserCog,
   Clock,
   Briefcase,
   IndianRupee,
-  Calendar
+  Calendar,
+  MapPin,
+  Mail,
+  Phone,
+  CreditCard,
+  FileText,
+  Award,
+  GraduationCap,
+  Building2,
+  Globe,
+  Home,
+  Banknote,
+  Landmark,
+  Percent,
+  BadgeIndianRupee,
+  CalendarDays,
+  UserRound,
+  Heart,
+  Droplets,
+  Hash,
+  FileBadge,
+  NotebookPen
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +58,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -45,14 +68,14 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 
-import { getTeacherDetailsApi, updateTeacherApi } from "@/lib/api/admin.api";
+import { getFacultyAdminDetailsApi, updateFacultyAdminApi } from "@/lib/api/admin.api";
 
-// Updated schema to include shiftTimings
-const teacherSchema = z.object({
+// Extended schema with all fields
+const facultyAdminSchema = z.object({
   // Personal Information
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -70,14 +93,18 @@ const teacherSchema = z.object({
     pincode: z.string().optional().nullable(),
   }).optional(),
 
-  // Employment Details (from employeeRecord)
+  // Identity Documents
+  aadharNumber: z.string().optional().nullable(),
+  panNumber: z.string().optional().nullable(),
+  
+  // Employment Details
   employeeId: z.string().optional().nullable(),
   department: z.string().optional().nullable(),
   designation: z.string().optional().nullable(),
   joiningDate: z.string().optional().nullable(),
   contractType: z.enum(["PERMANENT", "CONTRACT", "VISITING", "PROBATION"]).optional().nullable(),
 
-  // Shift Timings - NEW
+  // Shift Timings
   shiftTimings: z.object({
     start: z.string().default("09:00"),
     end: z.string().default("17:00"),
@@ -85,7 +112,7 @@ const teacherSchema = z.object({
     workingHours: z.number().default(8),
   }).optional(),
 
-  // Salary Information
+  // Salary Structure
   salary: z.object({
     basic: z.number().optional(),
     hra: z.number().optional(),
@@ -93,6 +120,7 @@ const teacherSchema = z.object({
     ta: z.number().optional(),
     pf: z.number().optional(),
     tax: z.number().optional(),
+    netSalary: z.number().optional(),
   }).optional(),
 
   // Bank Details
@@ -108,26 +136,23 @@ const teacherSchema = z.object({
     taken: z.number().optional(),
     remaining: z.number().optional(),
   }).optional(),
-
-  // Identity Documents
-  aadharNumber: z.string().optional().nullable(),
-  panNumber: z.string().optional().nullable(),
 });
 
-type TeacherFormValues = z.infer<typeof teacherSchema>;
+type FacultyAdminFormValues = z.infer<typeof facultyAdminSchema>;
 
-export default function EditTeacherPage() {
+export default function EditFacultyAdminPage() {
   const router = useRouter();
   const params = useParams();
-  const teacherId = params.id as string;
+  const facultyAdminId = params.id as string;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("personal");
   const [calculatedNetSalary, setCalculatedNetSalary] = useState(0);
+  const [facultyAdminData, setFacultyAdminData] = useState<any>(null);
 
-  const form = useForm<TeacherFormValues>({
-    resolver: zodResolver(teacherSchema),
+  const form = useForm<FacultyAdminFormValues>({
+    resolver: zodResolver(facultyAdminSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -141,6 +166,8 @@ export default function EditTeacherPage() {
         country: "India",
         pincode: "",
       },
+      aadharNumber: "",
+      panNumber: "",
       employeeId: "",
       department: "",
       designation: "",
@@ -158,6 +185,7 @@ export default function EditTeacherPage() {
         ta: 0,
         pf: 0,
         tax: 0,
+        netSalary: 0,
       },
       bankAccount: {
         accountNumber: "",
@@ -169,8 +197,6 @@ export default function EditTeacherPage() {
         taken: 0,
         remaining: 30,
       },
-      aadharNumber: "",
-      panNumber: "",
     },
   });
 
@@ -181,40 +207,45 @@ export default function EditTeacherPage() {
       const totalEarnings = (watchSalary.basic || 0) + (watchSalary.hra || 0) + 
                            (watchSalary.da || 0) + (watchSalary.ta || 0);
       const totalDeductions = (watchSalary.pf || 0) + (watchSalary.tax || 0);
-      setCalculatedNetSalary(totalEarnings - totalDeductions);
+      const netSalary = totalEarnings - totalDeductions;
+      setCalculatedNetSalary(netSalary);
+      
+      // Update the netSalary field in the form
+      form.setValue("salary.netSalary", netSalary);
     }
-  }, [watchSalary]);
+  }, [watchSalary, form]);
 
   useEffect(() => {
-    fetchTeacherDetails();
-  }, [teacherId]);
+    fetchFacultyAdminDetails();
+  }, [facultyAdminId]);
 
-  const fetchTeacherDetails = async () => {
+  const fetchFacultyAdminDetails = async () => {
     try {
       setIsLoading(true);
-      const data = await getTeacherDetailsApi(teacherId);
+      const data = await getFacultyAdminDetailsApi(facultyAdminId);
+      setFacultyAdminData(data);
       
       // Format dates for input fields
       let formattedDate = "";
-      if (data.teacher.dateOfBirth) {
+      if (data.facultyAdmin.dateOfBirth) {
         try {
-          formattedDate = new Date(data.teacher.dateOfBirth).toISOString().split('T')[0];
+          formattedDate = new Date(data.facultyAdmin.dateOfBirth).toISOString().split('T')[0];
         } catch {
           formattedDate = "";
         }
       }
 
       let formattedJoiningDate = "";
-      if (data.teacher.employeeRecord?.joiningDate) {
+      if (data.facultyAdmin.employeeRecord?.joiningDate) {
         try {
-          formattedJoiningDate = new Date(data.teacher.employeeRecord.joiningDate).toISOString().split('T')[0];
+          formattedJoiningDate = new Date(data.facultyAdmin.employeeRecord.joiningDate).toISOString().split('T')[0];
         } catch {
           formattedJoiningDate = "";
         }
       }
 
       // Get shift timings from employeeRecord or use defaults
-      const shiftTimings = data.teacher.employeeRecord?.shiftTimings || {
+      const shiftTimings = data.facultyAdmin.employeeRecord?.shiftTimings || {
         start: "09:00",
         end: "17:00",
         gracePeriod: 15,
@@ -222,48 +253,57 @@ export default function EditTeacherPage() {
       };
 
       // Get salary info
-      const salary = data.teacher.employeeRecord?.salary || {
+      const salary = data.facultyAdmin.employeeRecord?.salary || {
         basic: 0,
         hra: 0,
         da: 0,
         ta: 0,
         pf: 0,
         tax: 0,
+        netSalary: 0,
       };
 
+      // Calculate net salary for display
+      const totalEarnings = (salary.basic || 0) + (salary.hra || 0) + 
+                           (salary.da || 0) + (salary.ta || 0);
+      const totalDeductions = (salary.pf || 0) + (salary.tax || 0);
+      const netSalary = totalEarnings - totalDeductions;
+
       // Get bank info
-      const bankAccount = data.teacher.employeeRecord?.salary?.bankAccount || {
+      const bankAccount = data.facultyAdmin.employeeRecord?.salary?.bankAccount || {
         accountNumber: "",
         ifscCode: "",
         bankName: "",
       };
 
       // Get leave info
-      const leaveSettings = data.teacher.employeeRecord?.leaves || {
+      const leaveSettings = data.facultyAdmin.employeeRecord?.leaves || {
         total: 30,
         taken: 0,
         remaining: 30,
       };
 
       form.reset({
-        name: data.teacher.name || "",
-        email: data.teacher.email || "",
-        phone: data.teacher.phone || "",
+        name: data.facultyAdmin.name || "",
+        email: data.facultyAdmin.email || "",
+        phone: data.facultyAdmin.phone || "",
         dateOfBirth: formattedDate,
-        gender: data.teacher.gender || "Prefer not to say",
-        bloodGroup: data.teacher.bloodGroup || "O+",
+        gender: data.facultyAdmin.gender || "Prefer not to say",
+        bloodGroup: data.facultyAdmin.bloodGroup || "O+",
         address: {
-          street: data.teacher.address?.street || "",
-          city: data.teacher.address?.city || "",
-          state: data.teacher.address?.state || "",
-          country: data.teacher.address?.country || "India",
-          pincode: data.teacher.address?.pincode || "",
+          street: data.facultyAdmin.address?.street || "",
+          city: data.facultyAdmin.address?.city || "",
+          state: data.facultyAdmin.address?.state || "",
+          country: data.facultyAdmin.address?.country || "India",
+          pincode: data.facultyAdmin.address?.pincode || "",
         },
-        employeeId: data.teacher.employeeRecord?.employeeId || "",
-        department: data.teacher.employeeRecord?.department || "",
-        designation: data.teacher.employeeRecord?.designation || "",
+        aadharNumber: data.facultyAdmin.aadharNumber || "",
+        panNumber: data.facultyAdmin.panNumber || "",
+        employeeId: data.facultyAdmin.employeeRecord?.employeeId || "",
+        department: data.facultyAdmin.employeeRecord?.department || "",
+        designation: data.facultyAdmin.employeeRecord?.designation || "",
         joiningDate: formattedJoiningDate,
-        contractType: data.teacher.employeeRecord?.contractType || "PERMANENT",
+        contractType: data.facultyAdmin.employeeRecord?.contractType || "PERMANENT",
         
         // Shift Timings
         shiftTimings: {
@@ -281,6 +321,7 @@ export default function EditTeacherPage() {
           ta: salary.ta || 0,
           pf: salary.pf || 0,
           tax: salary.tax || 0,
+          netSalary: netSalary,
         },
         
         // Bank
@@ -296,125 +337,214 @@ export default function EditTeacherPage() {
           taken: leaveSettings.taken || 0,
           remaining: leaveSettings.remaining || 30,
         },
-        
-        // Documents
-        aadharNumber: data.teacher.aadharNumber || "",
-        panNumber: data.teacher.panNumber || "",
       });
+
+      setCalculatedNetSalary(netSalary);
     } catch (error) {
-      console.error("Error fetching teacher:", error);
-      toast.error("Failed to load teacher details");
-      router.push("/admin/teachers");
+      console.error("Error fetching faculty admin:", error);
+      toast.error("Failed to load faculty admin details");
+      router.push("/admin/faculty-admins");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const onSubmit = async (data: TeacherFormValues) => {
+  const onSubmit = async (data: FacultyAdminFormValues) => {
     setIsSaving(true);
     try {
       // Format the data for API
       const updateData = {
-        id: teacherId,
+        id: facultyAdminId,
         name: data.name,
         email: data.email,
-        phone: data.phone,
+        phone: data.phone || undefined,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth).toISOString() : undefined,
-        gender: data.gender,
-        bloodGroup: data.bloodGroup,
+        gender: data.gender || undefined,
+        bloodGroup: data.bloodGroup || undefined,
         address: data.address,
-        department: data.department,
-        designation: data.designation,
+        aadharNumber: data.aadharNumber || undefined,
+        panNumber: data.panNumber || undefined,
+        department: data.department || undefined,
+        designation: data.designation || undefined,
         joiningDate: data.joiningDate ? new Date(data.joiningDate).toISOString() : undefined,
-        contractType: data.contractType,
+        contractType: data.contractType || undefined,
         
-        // Include shift timings
+        // Shift timings
         shiftTimings: data.shiftTimings,
         
-        // Include salary
+        // Salary
         salary: data.salary ? {
-          ...data.salary,
-          netSalary: calculatedNetSalary
+          basic: data.salary.basic,
+          hra: data.salary.hra,
+          da: data.salary.da,
+          ta: data.salary.ta,
+          pf: data.salary.pf,
+          tax: data.salary.tax,
+          netSalary: calculatedNetSalary,
         } : undefined,
         
-        // Include bank details
+        // Bank details
         bankAccount: data.bankAccount,
         
-        // Include leave settings
+        // Leave settings
         leaveSettings: data.leaveSettings ? {
-          total: data.leaveSettings.totalLeaves,
+          totalLeaves: data.leaveSettings.totalLeaves,
           taken: data.leaveSettings.taken,
-          remaining: data.leaveSettings.remaining
+          remaining: data.leaveSettings.remaining,
         } : undefined,
-        
-        // Documents
-        aadharNumber: data.aadharNumber,
-        panNumber: data.panNumber,
       };
 
-      await updateTeacherApi(updateData);
-      toast.success("Teacher updated successfully");
-      router.push(`/admin/teachers/${teacherId}`);
+      await updateFacultyAdminApi(updateData);
+      toast.success("Faculty Admin Updated", {
+        description: "The faculty admin information has been updated successfully.",
+      });
+      router.push(`/admin/faculty-admins/${facultyAdminId}`);
     } catch (error: any) {
-      toast.error(error.message || "Failed to update teacher");
+      toast.error("Update Failed", {
+        description: error.response?.data?.message || "Please try again.",
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Helper function to get initials for avatar
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+          <p className="text-muted-foreground">Loading faculty admin details...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 space-y-6 p-6 md:p-8 pt-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Teacher</h1>
-          <p className="text-muted-foreground mt-1">
-            Update teacher information and settings
-          </p>
+    <div className="flex-1 space-y-6 p-6 md:p-8 pt-6 bg-gradient-to-br from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 min-h-screen">
+      {/* Header with Profile Summary */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <Avatar className="h-16 w-16 border-2 border-primary/20">
+            <AvatarFallback className="bg-primary/10 text-primary text-xl">
+              {getInitials(form.watch("name") || "FA")}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+              {form.watch("name") || "Faculty Admin"}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 mt-1">
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Building2 className="h-3 w-3" />
+                {form.watch("department") || "Department"}
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1">
+                <BadgeIndianRupee className="h-3 w-3" />
+                ₹{calculatedNetSalary.toLocaleString()}
+              </Badge>
+              <Badge variant="outline" className="flex items-center gap-1">
+                <CalendarDays className="h-3 w-3" />
+                {form.watch("employeeId") || "ID"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 w-full md:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.back()}
+            className="flex-1 md:flex-none"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={form.handleSubmit(onSubmit)}
+            disabled={isSaving}
+            className="flex-1 md:flex-none bg-primary hover:bg-primary/90"
+          >
+            {isSaving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Changes
+          </Button>
         </div>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid grid-cols-7 w-full">
-              <TabsTrigger value="personal">Personal</TabsTrigger>
-              <TabsTrigger value="address">Address</TabsTrigger>
-              <TabsTrigger value="employment">Employment</TabsTrigger>
-              <TabsTrigger value="shift">Shift</TabsTrigger>
-              <TabsTrigger value="salary">Salary</TabsTrigger>
-              <TabsTrigger value="bank">Bank</TabsTrigger>
-              <TabsTrigger value="documents">Docs</TabsTrigger>
+            <TabsList className="grid grid-cols-2 md:grid-cols-7 w-full h-auto p-1 bg-white dark:bg-gray-800 shadow-sm">
+              <TabsTrigger value="personal" className="flex items-center gap-2">
+                <UserRound className="h-4 w-4" />
+                <span className="hidden md:inline">Personal</span>
+              </TabsTrigger>
+              <TabsTrigger value="address" className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                <span className="hidden md:inline">Address</span>
+              </TabsTrigger>
+              <TabsTrigger value="employment" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                <span className="hidden md:inline">Employment</span>
+              </TabsTrigger>
+              <TabsTrigger value="shift" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                <span className="hidden md:inline">Shift</span>
+              </TabsTrigger>
+              <TabsTrigger value="salary" className="flex items-center gap-2">
+                <IndianRupee className="h-4 w-4" />
+                <span className="hidden md:inline">Salary</span>
+              </TabsTrigger>
+              <TabsTrigger value="bank" className="flex items-center gap-2">
+                <Landmark className="h-4 w-4" />
+                <span className="hidden md:inline">Bank</span>
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                <span className="hidden md:inline">Docs</span>
+              </TabsTrigger>
             </TabsList>
 
-            {/* Personal Info Tab */}
+            {/* ========== PERSONAL INFO TAB ========== */}
             <TabsContent value="personal">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Personal Information</CardTitle>
-                  <CardDescription>Update personal details</CardDescription>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <UserRound className="h-5 w-5 text-blue-600" />
+                    Personal Information
+                  </CardTitle>
+                  <CardDescription>
+                    Update personal details and contact information
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <FormField
                       control={form.control}
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Full Name</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <UserRound className="h-3 w-3" />
+                            Full Name <span className="text-destructive">*</span>
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} />
+                            <Input placeholder="Enter full name" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -426,9 +556,12 @@ export default function EditTeacherPage() {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            Email <span className="text-destructive">*</span>
+                          </FormLabel>
                           <FormControl>
-                            <Input type="email" {...field} value={field.value || ""} />
+                            <Input type="email" placeholder="admin@example.com" {...field} value={field.value || ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -440,10 +573,14 @@ export default function EditTeacherPage() {
                       name="phone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Phone</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            Phone Number
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} />
+                            <Input placeholder="Enter phone number" {...field} value={field.value || ""} />
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -453,10 +590,14 @@ export default function EditTeacherPage() {
                       name="dateOfBirth"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Date of Birth</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Date of Birth
+                          </FormLabel>
                           <FormControl>
                             <Input type="date" {...field} value={field.value || ""} />
                           </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -466,7 +607,10 @@ export default function EditTeacherPage() {
                       name="gender"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Gender</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <UserRound className="h-3 w-3" />
+                            Gender
+                          </FormLabel>
                           <Select onValueChange={field.onChange} value={field.value || "Prefer not to say"}>
                             <FormControl>
                               <SelectTrigger>
@@ -480,6 +624,7 @@ export default function EditTeacherPage() {
                               <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -489,7 +634,10 @@ export default function EditTeacherPage() {
                       name="bloodGroup"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Blood Group</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <Droplets className="h-3 w-3" />
+                            Blood Group
+                          </FormLabel>
                           <Select onValueChange={field.onChange} value={field.value || "O+"}>
                             <FormControl>
                               <SelectTrigger>
@@ -507,6 +655,7 @@ export default function EditTeacherPage() {
                               <SelectItem value="AB-">AB-</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -515,23 +664,31 @@ export default function EditTeacherPage() {
               </Card>
             </TabsContent>
 
-            {/* Address Tab */}
+            {/* ========== ADDRESS TAB ========== */}
             <TabsContent value="address">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Address Information</CardTitle>
-                  <CardDescription>Update address details</CardDescription>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-green-600" />
+                    Address Information
+                  </CardTitle>
+                  <CardDescription>
+                    Update residential address details
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="address.street"
                       render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Street Address</FormLabel>
+                        <FormItem className="md:col-span-2">
+                          <FormLabel className="flex items-center gap-1">
+                            <Home className="h-3 w-3" />
+                            Street Address
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} />
+                            <Input placeholder="Enter street address" {...field} value={field.value || ""} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -544,7 +701,7 @@ export default function EditTeacherPage() {
                         <FormItem>
                           <FormLabel>City</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} />
+                            <Input placeholder="Enter city" {...field} value={field.value || ""} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -557,7 +714,7 @@ export default function EditTeacherPage() {
                         <FormItem>
                           <FormLabel>State</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} />
+                            <Input placeholder="Enter state" {...field} value={field.value || ""} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -570,7 +727,7 @@ export default function EditTeacherPage() {
                         <FormItem>
                           <FormLabel>Country</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || "India"} />
+                            <Input placeholder="Enter country" {...field} value={field.value || "India"} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -583,7 +740,7 @@ export default function EditTeacherPage() {
                         <FormItem>
                           <FormLabel>Pincode</FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} />
+                            <Input placeholder="Enter pincode" {...field} value={field.value || ""} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -593,24 +750,33 @@ export default function EditTeacherPage() {
               </Card>
             </TabsContent>
 
-            {/* Employment Tab */}
+            {/* ========== EMPLOYMENT TAB ========== */}
             <TabsContent value="employment">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Employment Details</CardTitle>
-                  <CardDescription>Update employment information</CardDescription>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-purple-600" />
+                    Employment Details
+                  </CardTitle>
+                  <CardDescription>
+                    Update employment and contract information
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CardContent className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <FormField
                       control={form.control}
                       name="employeeId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Employee ID</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <Hash className="h-3 w-3" />
+                            Employee ID
+                          </FormLabel>
                           <FormControl>
                             <Input {...field} value={field.value || ""} readOnly className="bg-muted" />
                           </FormControl>
+                          <FormDescription>Auto-generated unique ID</FormDescription>
                         </FormItem>
                       )}
                     />
@@ -628,23 +794,17 @@ export default function EditTeacherPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Computer Science">Computer Science</SelectItem>
-                              <SelectItem value="Information Technology">Information Technology</SelectItem>
-                              <SelectItem value="Mathematics">Mathematics</SelectItem>
-                              <SelectItem value="Physics">Physics</SelectItem>
-                              <SelectItem value="Chemistry">Chemistry</SelectItem>
-                              <SelectItem value="Biology">Biology</SelectItem>
-                              <SelectItem value="Electronics">Electronics</SelectItem>
-                              <SelectItem value="Electrical">Electrical</SelectItem>
-                              <SelectItem value="Mechanical">Mechanical</SelectItem>
-                              <SelectItem value="Civil">Civil</SelectItem>
-                              <SelectItem value="Commerce">Commerce</SelectItem>
-                              <SelectItem value="Economics">Economics</SelectItem>
-                              <SelectItem value="English">English</SelectItem>
-                              <SelectItem value="Hindi">Hindi</SelectItem>
-                              <SelectItem value="Business Administration">Business Administration</SelectItem>
+                              <SelectItem value="Administration">Administration</SelectItem>
+                              <SelectItem value="Academic Affairs">Academic Affairs</SelectItem>
+                              <SelectItem value="Student Affairs">Student Affairs</SelectItem>
+                              <SelectItem value="Finance">Finance</SelectItem>
+                              <SelectItem value="Human Resources">Human Resources</SelectItem>
+                              <SelectItem value="Examinations">Examinations</SelectItem>
+                              <SelectItem value="Library">Library</SelectItem>
+                              <SelectItem value="IT Services">IT Services</SelectItem>
                             </SelectContent>
                           </Select>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -662,26 +822,14 @@ export default function EditTeacherPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Professor">Professor</SelectItem>
-                              <SelectItem value="Associate Professor">Associate Professor</SelectItem>
-                              <SelectItem value="Assistant Professor">Assistant Professor</SelectItem>
-                              <SelectItem value="Lecturer">Lecturer</SelectItem>
-                              <SelectItem value="Guest Faculty">Guest Faculty</SelectItem>
+                              <SelectItem value="Faculty Admin">Faculty Admin</SelectItem>
+                              <SelectItem value="Senior Faculty Admin">Senior Faculty Admin</SelectItem>
+                              <SelectItem value="Department Head">Department Head</SelectItem>
+                              <SelectItem value="Dean">Dean</SelectItem>
+                              <SelectItem value="Director">Director</SelectItem>
                             </SelectContent>
                           </Select>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="joiningDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Joining Date</FormLabel>
-                          <FormControl>
-                            <Input type="date" {...field} value={field.value || ""} />
-                          </FormControl>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -708,21 +856,40 @@ export default function EditTeacherPage() {
                         </FormItem>
                       )}
                     />
+
+                    <FormField
+                      control={form.control}
+                      name="joiningDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Joining Date
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} value={field.value || ""} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Shift Timings Tab - NEW */}
+            {/* ========== SHIFT TIMINGS TAB ========== */}
             <TabsContent value="shift">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Shift Timings</CardTitle>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-amber-600" />
+                    Shift Timings
+                  </CardTitle>
                   <CardDescription>
                     Configure work schedule for attendance tracking
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
@@ -742,7 +909,6 @@ export default function EditTeacherPage() {
                             </div>
                           </FormControl>
                           <FormDescription>Regular shift start time</FormDescription>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -765,7 +931,6 @@ export default function EditTeacherPage() {
                             </div>
                           </FormControl>
                           <FormDescription>Regular shift end time</FormDescription>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -789,7 +954,6 @@ export default function EditTeacherPage() {
                             </div>
                           </FormControl>
                           <FormDescription>Minutes allowed after shift start without being late</FormDescription>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -814,32 +978,34 @@ export default function EditTeacherPage() {
                             </div>
                           </FormControl>
                           <FormDescription>Expected daily working hours</FormDescription>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
 
                   {/* Shift Summary */}
-                  <Card className="bg-muted/50">
+                  <Card className="bg-muted/50 border-0">
                     <CardContent className="p-4">
-                      <h4 className="font-medium mb-3">Shift Summary</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Start Time:</span>
-                          <p className="font-medium">{form.watch("shiftTimings.start") || "09:00"}</p>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Shift Summary
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg text-center">
+                          <span className="text-xs text-muted-foreground">Start</span>
+                          <p className="font-bold text-lg">{form.watch("shiftTimings.start") || "09:00"}</p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">End Time:</span>
-                          <p className="font-medium">{form.watch("shiftTimings.end") || "17:00"}</p>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg text-center">
+                          <span className="text-xs text-muted-foreground">End</span>
+                          <p className="font-bold text-lg">{form.watch("shiftTimings.end") || "17:00"}</p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Grace Period:</span>
-                          <p className="font-medium">{form.watch("shiftTimings.gracePeriod") || 15} minutes</p>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg text-center">
+                          <span className="text-xs text-muted-foreground">Grace</span>
+                          <p className="font-bold text-lg">{form.watch("shiftTimings.gracePeriod") || 15} min</p>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Working Hours:</span>
-                          <p className="font-medium">{form.watch("shiftTimings.workingHours") || 8} hours/day</p>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg text-center">
+                          <span className="text-xs text-muted-foreground">Hours</span>
+                          <p className="font-bold text-lg">{form.watch("shiftTimings.workingHours") || 8} hrs</p>
                         </div>
                       </div>
                     </CardContent>
@@ -848,21 +1014,29 @@ export default function EditTeacherPage() {
               </Card>
             </TabsContent>
 
-            {/* Salary Tab - NEW */}
+            {/* ========== SALARY TAB ========== */}
             <TabsContent value="salary">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Salary Structure</CardTitle>
-                  <CardDescription>Update salary components</CardDescription>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <IndianRupee className="h-5 w-5 text-emerald-600" />
+                    Salary Structure
+                  </CardTitle>
+                  <CardDescription>
+                    Configure salary components and deductions
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <FormField
                       control={form.control}
                       name="salary.basic"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Basic Salary</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <IndianRupee className="h-3 w-3" />
+                            Basic Salary
+                          </FormLabel>
                           <FormControl>
                             <div className="relative">
                               <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -990,28 +1164,47 @@ export default function EditTeacherPage() {
                     />
                   </div>
 
-                  {/* Salary Summary */}
-                  <Card className="bg-muted/50">
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span>Total Earnings:</span>
-                        <span className="font-medium text-green-600">
-                          ₹{((watchSalary?.basic || 0) + (watchSalary?.hra || 0) + 
-                             (watchSalary?.da || 0) + (watchSalary?.ta || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Total Deductions:</span>
-                        <span className="font-medium text-destructive">
-                          -₹{((watchSalary?.pf || 0) + (watchSalary?.tax || 0)).toLocaleString()}
-                        </span>
-                      </div>
-                      <Separator />
-                      <div className="flex justify-between font-bold">
-                        <span>Net Salary:</span>
-                        <span className="text-primary text-lg">
-                          ₹{calculatedNetSalary.toLocaleString()}
-                        </span>
+                  {/* Salary Summary Card */}
+                  <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                    <CardContent className="p-6 space-y-4">
+                      <h4 className="font-semibold flex items-center gap-2">
+                        <BadgeIndianRupee className="h-5 w-5" />
+                        Salary Summary
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Basic:</span>
+                            <span className="font-medium">₹{(watchSalary?.basic || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">HRA:</span>
+                            <span className="font-medium">₹{(watchSalary?.hra || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">DA:</span>
+                            <span className="font-medium">₹{(watchSalary?.da || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">TA:</span>
+                            <span className="font-medium">₹{(watchSalary?.ta || 0).toLocaleString()}</span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">PF:</span>
+                            <span className="font-medium text-orange-600">-₹{(watchSalary?.pf || 0).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Tax:</span>
+                            <span className="font-medium text-orange-600">-₹{(watchSalary?.tax || 0).toLocaleString()}</span>
+                          </div>
+                          <Separator className="my-2" />
+                          <div className="flex justify-between font-bold">
+                            <span>Net Salary:</span>
+                            <span className="text-lg text-primary">₹{calculatedNetSalary.toLocaleString()}</span>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1019,21 +1212,29 @@ export default function EditTeacherPage() {
               </Card>
             </TabsContent>
 
-            {/* Bank Details Tab - NEW */}
+            {/* ========== BANK DETAILS TAB ========== */}
             <TabsContent value="bank">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Bank Account Details</CardTitle>
-                  <CardDescription>Update bank information for salary transfer</CardDescription>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Landmark className="h-5 w-5 text-blue-600" />
+                    Bank Account Details
+                  </CardTitle>
+                  <CardDescription>
+                    Update bank information for salary transfer
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="bankAccount.accountNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Account Number</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <CreditCard className="h-3 w-3" />
+                            Account Number
+                          </FormLabel>
                           <FormControl>
                             <Input placeholder="Enter account number" {...field} value={field.value || ""} />
                           </FormControl>
@@ -1067,28 +1268,61 @@ export default function EditTeacherPage() {
                       )}
                     />
                   </div>
+
+                  {/* Leave Summary Card */}
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <CalendarDays className="h-4 w-4" />
+                        Leave Summary
+                      </h4>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg text-center">
+                          <span className="text-sm text-muted-foreground">Total</span>
+                          <p className="text-2xl font-bold">{form.watch("leaveSettings.totalLeaves") || 30}</p>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg text-center">
+                          <span className="text-sm text-muted-foreground">Taken</span>
+                          <p className="text-2xl font-bold text-yellow-600">{form.watch("leaveSettings.taken") || 0}</p>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg text-center">
+                          <span className="text-sm text-muted-foreground">Remaining</span>
+                          <p className="text-2xl font-bold text-green-600">{form.watch("leaveSettings.remaining") || 30}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Documents Tab */}
+            {/* ========== DOCUMENTS TAB ========== */}
             <TabsContent value="documents">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Identity Documents</CardTitle>
-                  <CardDescription>Update identity information</CardDescription>
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-gray-800 dark:to-gray-800 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-rose-600" />
+                    Identity Documents
+                  </CardTitle>
+                  <CardDescription>
+                    Update identity and verification documents
+                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="p-6 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="aadharNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Aadhar Number</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <FileBadge className="h-3 w-3" />
+                            Aadhar Number
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="Enter 12-digit Aadhar number" />
+                            <Input placeholder="Enter 12-digit Aadhar number" {...field} value={field.value || ""} />
                           </FormControl>
+                          <FormDescription>12-digit unique identification number</FormDescription>
                         </FormItem>
                       )}
                     />
@@ -1098,33 +1332,31 @@ export default function EditTeacherPage() {
                       name="panNumber"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>PAN Number</FormLabel>
+                          <FormLabel className="flex items-center gap-1">
+                            <NotebookPen className="h-3 w-3" />
+                            PAN Number
+                          </FormLabel>
                           <FormControl>
-                            <Input {...field} value={field.value || ""} placeholder="e.g., ABCDE1234F" />
+                            <Input placeholder="e.g., ABCDE1234F" {...field} value={field.value || ""} />
                           </FormControl>
+                          <FormDescription>Permanent Account Number</FormDescription>
                         </FormItem>
                       )}
                     />
                   </div>
 
-                  {/* Leave Summary */}
-                  <Card className="bg-muted/50">
-                    <CardContent className="p-4">
-                      <h4 className="font-medium mb-3">Leave Summary</h4>
-                      <div className="grid grid-cols-3 gap-4 text-center">
-                        <div>
-                          <span className="text-sm text-muted-foreground">Total</span>
-                          <p className="text-xl font-bold">{form.watch("leaveSettings.totalLeaves") || 30}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">Taken</span>
-                          <p className="text-xl font-bold text-yellow-600">{form.watch("leaveSettings.taken") || 0}</p>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground">Remaining</span>
-                          <p className="text-xl font-bold text-green-600">{form.watch("leaveSettings.remaining") || 30}</p>
-                        </div>
-                      </div>
+                  {/* Document Upload Section - Optional */}
+                  <Card className="bg-muted/50 border-dashed">
+                    <CardContent className="p-6 text-center">
+                      <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <h4 className="font-medium mb-1">Document Management</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Upload and manage official documents
+                      </p>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        Manage Documents
+                      </Button>
                     </CardContent>
                   </Card>
                 </CardContent>
@@ -1132,22 +1364,27 @@ export default function EditTeacherPage() {
             </TabsContent>
           </Tabs>
 
-          <div className="flex justify-end gap-4">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+          {/* Form Actions */}
+          <div className="flex justify-end gap-4 sticky bottom-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg border">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              className="gap-2"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button 
+              type="submit" 
+              disabled={isSaving}
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
               {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
+                <Save className="h-4 w-4" />
               )}
+              Save Changes
             </Button>
           </div>
         </form>

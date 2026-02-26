@@ -8,7 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Save, UserPlus, Briefcase, GraduationCap, Mail, Phone, MapPin, Calendar, CreditCard, IndianRupee, BookOpen, Award } from "lucide-react";
+import { ArrowLeft, Loader2, Save, UserPlus, Briefcase, GraduationCap, Mail, Phone, MapPin, Calendar, CreditCard, IndianRupee, BookOpen, Award, Clock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -39,10 +39,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-
 import { createTeacherApi } from "@/lib/api/admin.api";
 
 // Validation Schema
@@ -106,6 +102,13 @@ const teacherSchema = z.object({
   leaveSettings: z.object({
     totalLeaves: z.number().default(30),
   }).optional(),
+
+   shiftTimings: z.object({
+    start: z.string().default("09:00"),
+    end: z.string().default("17:00"),
+    gracePeriod: z.number().default(15),
+    workingHours: z.number().default(8),
+  }).optional(),
 });
 
 type TeacherFormValues = z.infer<typeof teacherSchema>;
@@ -156,6 +159,12 @@ export default function CreateTeacherPage() {
       leaveSettings: {
         totalLeaves: 30,
       },
+      shiftTimings: {
+      start: "09:00",
+      end: "17:00",
+      gracePeriod: 15,
+      workingHours: 8,
+    },
     },
   });
 
@@ -309,14 +318,15 @@ export default function CreateTeacherPage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-6 w-full">
-                  <TabsTrigger value="personal">Personal</TabsTrigger>
-                  <TabsTrigger value="employment">Employment</TabsTrigger>
-                  <TabsTrigger value="qualifications">Qualifications</TabsTrigger>
-                  <TabsTrigger value="salary">Salary</TabsTrigger>
-                  <TabsTrigger value="bank">Bank Details</TabsTrigger>
-                  <TabsTrigger value="documents">Documents</TabsTrigger>
-                </TabsList>
+                <TabsList className="grid grid-cols-7 w-full">
+  <TabsTrigger value="personal">Personal</TabsTrigger>
+  <TabsTrigger value="employment">Employment</TabsTrigger>
+  <TabsTrigger value="shift">Shift</TabsTrigger> {/* New tab */}
+  <TabsTrigger value="qualifications">Qualifications</TabsTrigger>
+  <TabsTrigger value="salary">Salary</TabsTrigger>
+  <TabsTrigger value="bank">Bank</TabsTrigger>
+  <TabsTrigger value="documents">Documents</TabsTrigger>
+</TabsList>
 
                 {/* Personal Information Tab */}
                 <TabsContent value="personal" className="space-y-6">
@@ -676,7 +686,135 @@ export default function CreateTeacherPage() {
                     </CardContent>
                   </Card>
                 </TabsContent>
+<TabsContent value="shift" className="space-y-6">
+  <Card>
+    <CardHeader>
+      <CardTitle>Shift Timings</CardTitle>
+      <CardDescription>
+        Configure work schedule and shift details for attendance tracking
+      </CardDescription>
+    </CardHeader>
+    <CardContent className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <FormField
+          control={form.control}
+          name="shiftTimings.start"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Shift Start Time</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    className="pl-9"
+                    {...field}
+                  />
+                </div>
+              </FormControl>
+              <FormDescription>Regular shift start time (e.g., 09:00)</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        <FormField
+          control={form.control}
+          name="shiftTimings.end"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Shift End Time</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="time"
+                    className="pl-9"
+                    {...field}
+                  />
+                </div>
+              </FormControl>
+              <FormDescription>Regular shift end time (e.g., 17:00)</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="shiftTimings.gracePeriod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Grace Period (minutes)</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    className="pl-9"
+                    {...field}
+                    onChange={(e) => field.onChange(parseInt(e.target.value) || 15)}
+                  />
+                </div>
+              </FormControl>
+              <FormDescription>Minutes allowed after shift start without being marked late</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="shiftTimings.workingHours"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Working Hours Per Day</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="number"
+                    step="0.5"
+                    className="pl-9"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 8)}
+                  />
+                </div>
+              </FormControl>
+              <FormDescription>Expected daily working hours</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Shift Preview Card */}
+      <Card className="bg-muted/50">
+        <CardContent className="p-4">
+          <h4 className="font-medium mb-3">Shift Summary</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-muted-foreground">Start Time:</span>
+              <p className="font-medium">{form.watch("shiftTimings.start") || "09:00"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">End Time:</span>
+              <p className="font-medium">{form.watch("shiftTimings.end") || "17:00"}</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Grace Period:</span>
+              <p className="font-medium">{form.watch("shiftTimings.gracePeriod") || 15} minutes</p>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Working Hours:</span>
+              <p className="font-medium">{form.watch("shiftTimings.workingHours") || 8} hours/day</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </CardContent>
+  </Card>
+</TabsContent>
                 {/* Qualifications Tab */}
                 <TabsContent value="qualifications" className="space-y-6">
                   <Card>

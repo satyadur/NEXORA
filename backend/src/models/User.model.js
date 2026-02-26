@@ -285,6 +285,14 @@ const employeeRecordSchema = new mongoose.Schema(
         nextReviewDate: Date,
       },
     ],
+
+    // 👇 ADD SHIFT TIMINGS HERE (right after performanceReviews)
+    shiftTimings: {
+      start: { type: String, default: "09:00" }, // "09:00"
+      end: { type: String, default: "17:00" },   // "17:00"
+      gracePeriod: { type: Number, default: 15 }, // minutes
+      workingHours: { type: Number, default: 8 }, // hours
+    },
   },
   { _id: false },
 );

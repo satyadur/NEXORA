@@ -167,15 +167,74 @@ export interface StudentAnalytics {
 
 // Faculty Admin Types
 export interface FacultyAdmin {
-  _id: string;
-  name: string;
-  email: string;
-  phone?: string;
+  _id: string
+  name: string
+  email: string
+  phone?: string
+  role: "FACULTY_ADMIN"
+  uniqueId: string
+  avatar?: string
+  dateOfBirth?: string
+  gender?: string
+  bloodGroup?: string
+  aadharNumber?: string
+  panNumber?: string
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    country?: string
+    pincode?: string
+  }
   employeeRecord?: {
-    employeeId: string;
-    department: string;
-    designation: string;
-  };
+    employeeId: string
+    department: string
+    designation: string
+    joiningDate: string
+    contractType: "PERMANENT" | "CONTRACT" | "VISITING" | "PROBATION"
+    
+    // Shift Timings
+    shiftTimings?: {
+      start: string
+      end: string
+      gracePeriod: number
+      workingHours: number
+    }
+    
+    // Salary Information
+    salary?: {
+      basic: number
+      hra: number
+      da: number
+      ta: number
+      pf: number
+      tax: number
+      netSalary: number
+      bankAccount?: {
+        accountNumber: string
+        ifscCode: string
+        bankName: string
+      }
+    }
+    
+    // Leave Records
+    leaves?: {
+      total: number
+      taken: number
+      remaining: number
+      records: any[]
+    }
+    
+    // Documents
+    documents?: {
+      offerLetter?: { url: string }
+      appointmentLetter?: { url: string }
+      panCard?: { url: string }
+      aadharCard?: { url: string }
+    }
+  }
+  createdAt: string
+  updatedAt: string
 }
 
 export interface FacultyAdminDetails extends FacultyAdmin {
@@ -414,6 +473,12 @@ export interface CreateTeacherPayload {
   department?: string
   designation?: string
   joiningDate?: string
+   shiftTimings?: {
+    start: string
+    end: string
+    gracePeriod: number
+    workingHours: number
+  }
 }
 
 export const createTeacherApi = async (
@@ -430,6 +495,39 @@ export interface UpdateTeacherPayload {
   phone?: string
   department?: string
   designation?: string
+  shiftTimings?: {
+    start: string
+    end: string
+    gracePeriod: number
+    workingHours: number
+  }
+  salary?: {
+    basic?: number
+    hra?: number
+    da?: number
+    ta?: number
+    pf?: number
+    tax?: number
+    netSalary?: number
+  }
+  bankAccount?: {
+    accountNumber?: string
+    ifscCode?: string
+    bankName?: string
+  }
+  leaveSettings?: {
+    total?: number
+    taken?: number
+    remaining?: number
+  }
+  aadharNumber?: string
+  panNumber?: string
+  dateOfBirth?: string
+  gender?: string
+  bloodGroup?: string
+  address?: any
+  joiningDate?: string
+  contractType?: string
 }
 
 export const updateTeacherApi = async (
@@ -535,7 +633,10 @@ export const getFacultyAdminsApi = async (): Promise<FacultyAdmin[]> => {
   return res.data
 }
 
+// ========== CREATE FACULTY ADMIN PAYLOAD ==========
+
 export interface CreateFacultyAdminPayload {
+  // Personal Information
   name: string
   email: string
   password: string
@@ -543,6 +644,8 @@ export interface CreateFacultyAdminPayload {
   dateOfBirth?: string
   gender?: string
   bloodGroup?: string
+  
+  // Address
   address?: {
     street?: string
     city?: string
@@ -550,11 +653,100 @@ export interface CreateFacultyAdminPayload {
     country?: string
     pincode?: string
   }
+  
+  // Identity Documents
   aadharNumber?: string
   panNumber?: string
+  
+  // Employment Details
+  employeeId?: string
   department?: string
   designation?: string
   joiningDate?: string
+  contractType?: "PERMANENT" | "CONTRACT" | "VISITING" | "PROBATION"
+  
+  // Shift Timings - NEW
+  shiftTimings?: {
+    start: string
+    end: string
+    gracePeriod: number
+    workingHours: number
+  }
+  
+  // Salary Structure - ENHANCED
+  salary?: {
+    basic: number
+    hra: number
+    da: number
+    ta: number
+    pf: number
+    tax: number
+    netSalary?: number
+  }
+  
+  // Bank Details - NEW
+  bankAccount?: {
+    accountNumber: string
+    ifscCode: string
+    bankName: string
+  }
+  
+  // Leave Settings - NEW
+  leaveSettings?: {
+    totalLeaves: number
+  }
+  
+  // Qualifications - NEW
+  qualifications?: Array<{
+    degree: string
+    specialization: string
+    university: string
+    year: number
+    percentage?: number
+  }>
+}
+
+// ========== UPDATE FACULTY ADMIN PAYLOAD ==========
+
+export interface UpdateFacultyAdminPayload {
+  id: string
+  
+  // Personal Information
+  name?: string
+  email?: string
+  phone?: string
+  dateOfBirth?: string
+  gender?: string
+  bloodGroup?: string
+  
+  // Address
+  address?: {
+    street?: string
+    city?: string
+    state?: string
+    country?: string
+    pincode?: string
+  }
+  
+  // Identity Documents
+  aadharNumber?: string
+  panNumber?: string
+  
+  // Employment Details
+  department?: string
+  designation?: string
+  joiningDate?: string
+  contractType?: "PERMANENT" | "CONTRACT" | "VISITING" | "PROBATION"
+  
+  // Shift Timings - NEW
+  shiftTimings?: {
+    start?: string
+    end?: string
+    gracePeriod?: number
+    workingHours?: number
+  }
+  
+  // Salary Structure - ENHANCED
   salary?: {
     basic?: number
     hra?: number
@@ -562,6 +754,29 @@ export interface CreateFacultyAdminPayload {
     ta?: number
     pf?: number
     tax?: number
+    netSalary?: number
+  }
+  
+  // Bank Details - NEW
+  bankAccount?: {
+    accountNumber?: string
+    ifscCode?: string
+    bankName?: string
+  }
+  
+  // Leave Settings - NEW
+  leaveSettings?: {
+    totalLeaves?: number
+    taken?: number
+    remaining?: number
+  }
+  
+  // Documents
+  documents?: {
+    offerLetter?: { url: string }
+    appointmentLetter?: { url: string }
+    panCard?: { url: string }
+    aadharCard?: { url: string }
   }
 }
 
@@ -570,23 +785,6 @@ export const createFacultyAdminApi = async (
 ): Promise<FacultyAdmin> => {
   const res = await api.post("/admin/faculty-admins", data)
   return res.data
-}
-
-export interface UpdateFacultyAdminPayload {
-  id: string
-  name?: string
-  email?: string
-  phone?: string
-  department?: string
-  designation?: string
-  salary?: {
-    basic?: number
-    hra?: number
-    da?: number
-    ta?: number
-    pf?: number
-    tax?: number
-  }
 }
 
 export const updateFacultyAdminApi = async (

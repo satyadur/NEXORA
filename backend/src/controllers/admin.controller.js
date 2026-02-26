@@ -43,7 +43,7 @@ const generateAdminUniqueId = () => {
 const generateEmployeeId = (role, index) => {
   const prefix = role === "TEACHER" ? "TCH" : "FAC";
   const year = new Date().getFullYear().toString().slice(-2);
-  const num = (index + 1).toString().padStart(4, '0');
+  const num = (index + 1).toString().padStart(4, "0");
   return `${prefix}${year}${num}`;
 };
 
@@ -69,9 +69,15 @@ const generateEnrollmentNumber = (department = "GEN") => {
 export const getAdminStats = async (req, res) => {
   try {
     const currentDate = new Date();
-    const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-    const startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - 7));
-    
+    const startOfMonth = new Date(
+      currentDate.getFullYear(),
+      currentDate.getMonth(),
+      1,
+    );
+    const startOfWeek = new Date(
+      currentDate.setDate(currentDate.getDate() - 7),
+    );
+
     const [
       // Core Counts
       totalUsers,
@@ -79,25 +85,25 @@ export const getAdminStats = async (req, res) => {
       totalTeachers,
       totalClassrooms,
       totalAssignments,
-      
+
       // Active Status
       activeClassrooms,
       pendingClassrooms,
       publishedAssignments,
       draftAssignments,
-      
+
       // Recent Activity
       newUsersThisMonth,
       newSubmissionsThisMonth,
       newAssignmentsThisMonth,
       activeUsersLast7Days,
-      
+
       // Performance Metrics
       submissionStats,
       scoreStats,
       classroomUtilization,
       teacherWorkload,
-      studentEngagement
+      studentEngagement,
     ] = await Promise.all([
       // Basic counts
       User.countDocuments(),
@@ -105,27 +111,27 @@ export const getAdminStats = async (req, res) => {
       User.countDocuments({ role: "TEACHER" }),
       Classroom.countDocuments(),
       Assignment.countDocuments(),
-      
+
       // Classroom status
       Classroom.countDocuments({ status: "ACTIVE" }),
       Classroom.countDocuments({ status: "PENDING" }),
       Assignment.countDocuments({ isPublished: true }),
       Assignment.countDocuments({ isPublished: false }),
-      
+
       // Recent activity
-      User.countDocuments({ 
-        createdAt: { $gte: startOfMonth } 
+      User.countDocuments({
+        createdAt: { $gte: startOfMonth },
       }),
-      Submission.countDocuments({ 
-        createdAt: { $gte: startOfMonth } 
+      Submission.countDocuments({
+        createdAt: { $gte: startOfMonth },
       }),
-      Assignment.countDocuments({ 
-        createdAt: { $gte: startOfMonth } 
+      Assignment.countDocuments({
+        createdAt: { $gte: startOfMonth },
       }),
       User.countDocuments({
-        lastActive: { $gte: startOfWeek }
+        lastActive: { $gte: startOfWeek },
       }),
-      
+
       // Submission analytics
       Submission.aggregate([
         {
@@ -136,15 +142,15 @@ export const getAdminStats = async (req, res) => {
             maxScore: { $max: "$totalScore" },
             minScore: { $min: "$totalScore" },
             onTimeSubmissions: {
-              $sum: { $cond: ["$submittedOnTime", 1, 0] }
+              $sum: { $cond: ["$submittedOnTime", 1, 0] },
             },
             lateSubmissions: {
-              $sum: { $cond: ["$isLate", 1, 0] }
-            }
-          }
-        }
+              $sum: { $cond: ["$isLate", 1, 0] },
+            },
+          },
+        },
       ]),
-      
+
       // Score distribution
       Submission.aggregate([
         {
@@ -153,12 +159,12 @@ export const getAdminStats = async (req, res) => {
             boundaries: [0, 40, 60, 75, 90, 100],
             default: "90+",
             output: {
-              count: { $sum: 1 }
-            }
-          }
-        }
+              count: { $sum: 1 },
+            },
+          },
+        },
       ]),
-      
+
       // Classroom utilization
       Classroom.aggregate([
         {
@@ -166,16 +172,16 @@ export const getAdminStats = async (req, res) => {
             from: "users",
             localField: "students",
             foreignField: "_id",
-            as: "enrolledStudents"
-          }
+            as: "enrolledStudents",
+          },
         },
         {
           $lookup: {
             from: "assignments",
             localField: "_id",
             foreignField: "classroomId",
-            as: "classroomAssignments"
-          }
+            as: "classroomAssignments",
+          },
         },
         {
           $group: {
@@ -183,11 +189,13 @@ export const getAdminStats = async (req, res) => {
             totalCapacity: { $sum: "$capacity" },
             totalEnrolled: { $sum: { $size: "$enrolledStudents" } },
             avgClassSize: { $avg: { $size: "$enrolledStudents" } },
-            totalAssignmentsAcrossClassrooms: { $sum: { $size: "$classroomAssignments" } }
-          }
-        }
+            totalAssignmentsAcrossClassrooms: {
+              $sum: { $size: "$classroomAssignments" },
+            },
+          },
+        },
       ]),
-      
+
       // Teacher workload
       User.aggregate([
         { $match: { role: "TEACHER" } },
@@ -196,29 +204,33 @@ export const getAdminStats = async (req, res) => {
             from: "classrooms",
             localField: "_id",
             foreignField: "teacher",
-            as: "teachingClassrooms"
-          }
+            as: "teachingClassrooms",
+          },
         },
         {
           $lookup: {
             from: "assignments",
             localField: "_id",
             foreignField: "createdBy",
-            as: "createdAssignments"
-          }
+            as: "createdAssignments",
+          },
         },
         {
           $group: {
             _id: null,
             avgClassroomsPerTeacher: { $avg: { $size: "$teachingClassrooms" } },
-            avgAssignmentsPerTeacher: { $avg: { $size: "$createdAssignments" } },
+            avgAssignmentsPerTeacher: {
+              $avg: { $size: "$createdAssignments" },
+            },
             totalActiveTeachers: {
-              $sum: { $cond: [{ $gt: [{ $size: "$teachingClassrooms" }, 0] }, 1, 0] }
-            }
-          }
-        }
+              $sum: {
+                $cond: [{ $gt: [{ $size: "$teachingClassrooms" }, 0] }, 1, 0],
+              },
+            },
+          },
+        },
       ]),
-      
+
       // Student engagement
       User.aggregate([
         { $match: { role: "STUDENT" } },
@@ -227,23 +239,27 @@ export const getAdminStats = async (req, res) => {
             from: "submissions",
             localField: "_id",
             foreignField: "studentId",
-            as: "studentSubmissions"
-          }
+            as: "studentSubmissions",
+          },
         },
         {
           $lookup: {
             from: "attendances",
             localField: "_id",
             foreignField: "studentId",
-            as: "studentAttendance"
-          }
+            as: "studentAttendance",
+          },
         },
         {
           $group: {
             _id: null,
-            avgSubmissionsPerStudent: { $avg: { $size: "$studentSubmissions" } },
+            avgSubmissionsPerStudent: {
+              $avg: { $size: "$studentSubmissions" },
+            },
             studentsWithNoSubmissions: {
-              $sum: { $cond: [{ $eq: [{ $size: "$studentSubmissions" }, 0] }, 1, 0] }
+              $sum: {
+                $cond: [{ $eq: [{ $size: "$studentSubmissions" }, 0] }, 1, 0],
+              },
             },
             avgAttendanceRate: {
               $avg: {
@@ -258,23 +274,25 @@ export const getAdminStats = async (req, res) => {
                               $filter: {
                                 input: "$studentAttendance",
                                 as: "attendance",
-                                cond: { $eq: ["$$attendance.status", "PRESENT"] }
-                              }
-                            }
+                                cond: {
+                                  $eq: ["$$attendance.status", "PRESENT"],
+                                },
+                              },
+                            },
                           },
-                          { $size: "$studentAttendance" }
-                        ]
+                          { $size: "$studentAttendance" },
+                        ],
                       },
-                      100
-                    ]
+                      100,
+                    ],
                   },
-                  0
-                ]
-              }
-            }
-          }
-        }
-      ])
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
     ]);
 
     // Process submission stats
@@ -284,24 +302,42 @@ export const getAdminStats = async (req, res) => {
       maxScore: 0,
       minScore: 0,
       onTimeSubmissions: 0,
-      lateSubmissions: 0
+      lateSubmissions: 0,
     };
 
     // Calculate key performance indicators
-    const submissionRate = totalAssignments > 0 
-      ? ((submissionMetrics.totalSubmissions / totalAssignments) * 100).toFixed(2)
-      : 0;
-    
-    const onTimeRate = submissionMetrics.totalSubmissions > 0
-      ? ((submissionMetrics.onTimeSubmissions / submissionMetrics.totalSubmissions) * 100).toFixed(2)
-      : 0;
-    
-    const classroomUtilizationRate = classroomUtilization[0]?.totalCapacity > 0
-      ? ((classroomUtilization[0]?.totalEnrolled / classroomUtilization[0]?.totalCapacity) * 100).toFixed(2)
-      : 0;
+    const submissionRate =
+      totalAssignments > 0
+        ? (
+            (submissionMetrics.totalSubmissions / totalAssignments) *
+            100
+          ).toFixed(2)
+        : 0;
 
-    const engagementScore = ((parseFloat(submissionRate) + parseFloat(onTimeRate) + 
-      (studentEngagement[0]?.avgAttendanceRate || 0)) / 3).toFixed(2);
+    const onTimeRate =
+      submissionMetrics.totalSubmissions > 0
+        ? (
+            (submissionMetrics.onTimeSubmissions /
+              submissionMetrics.totalSubmissions) *
+            100
+          ).toFixed(2)
+        : 0;
+
+    const classroomUtilizationRate =
+      classroomUtilization[0]?.totalCapacity > 0
+        ? (
+            (classroomUtilization[0]?.totalEnrolled /
+              classroomUtilization[0]?.totalCapacity) *
+            100
+          ).toFixed(2)
+        : 0;
+
+    const engagementScore = (
+      (parseFloat(submissionRate) +
+        parseFloat(onTimeRate) +
+        (studentEngagement[0]?.avgAttendanceRate || 0)) /
+      3
+    ).toFixed(2);
 
     res.json({
       // Core Metrics
@@ -314,17 +350,17 @@ export const getAdminStats = async (req, res) => {
         activeClassrooms,
         pendingClassrooms,
         publishedAssignments,
-        draftAssignments
+        draftAssignments,
       },
-      
+
       // Growth Metrics
       growth: {
         newUsersThisMonth,
         newSubmissionsThisMonth,
         newAssignmentsThisMonth,
-        activeUsersLast7Days
+        activeUsersLast7Days,
       },
-      
+
       // Performance Metrics
       performance: {
         totalSubmissions: submissionMetrics.totalSubmissions,
@@ -333,43 +369,56 @@ export const getAdminStats = async (req, res) => {
         lowestScore: submissionMetrics.minScore || 0,
         submissionRate: parseFloat(submissionRate),
         onTimeRate: parseFloat(onTimeRate),
-        lateSubmissions: submissionMetrics.lateSubmissions
+        lateSubmissions: submissionMetrics.lateSubmissions,
       },
-      
+
       // Score Distribution
-      scoreDistribution: scoreStats.map(bucket => ({
+      scoreDistribution: scoreStats.map((bucket) => ({
         range: bucket._id,
-        count: bucket.count
+        count: bucket.count,
       })),
-      
+
       // Utilization Metrics
       utilization: {
         classroomUtilizationRate: parseFloat(classroomUtilizationRate),
         avgClassSize: classroomUtilization[0]?.avgClassSize?.toFixed(1) || 0,
         totalEnrolledStudents: classroomUtilization[0]?.totalEnrolled || 0,
-        avgAssignmentsPerClassroom: classroomUtilization[0]?.totalAssignmentsAcrossClassrooms > 0
-          ? (classroomUtilization[0]?.totalAssignmentsAcrossClassrooms / totalClassrooms).toFixed(1)
-          : 0
+        avgAssignmentsPerClassroom:
+          classroomUtilization[0]?.totalAssignmentsAcrossClassrooms > 0
+            ? (
+                classroomUtilization[0]?.totalAssignmentsAcrossClassrooms /
+                totalClassrooms
+              ).toFixed(1)
+            : 0,
       },
-      
+
       // Teacher Analytics
       teacherAnalytics: {
-        avgClassroomsPerTeacher: teacherWorkload[0]?.avgClassroomsPerTeacher?.toFixed(1) || 0,
-        avgAssignmentsPerTeacher: teacherWorkload[0]?.avgAssignmentsPerTeacher?.toFixed(1) || 0,
+        avgClassroomsPerTeacher:
+          teacherWorkload[0]?.avgClassroomsPerTeacher?.toFixed(1) || 0,
+        avgAssignmentsPerTeacher:
+          teacherWorkload[0]?.avgAssignmentsPerTeacher?.toFixed(1) || 0,
         totalActiveTeachers: teacherWorkload[0]?.totalActiveTeachers || 0,
-        teacherEffectiveness: teacherWorkload[0]?.totalActiveTeachers > 0
-          ? ((teacherWorkload[0]?.totalActiveTeachers / totalTeachers) * 100).toFixed(1)
-          : 0
+        teacherEffectiveness:
+          teacherWorkload[0]?.totalActiveTeachers > 0
+            ? (
+                (teacherWorkload[0]?.totalActiveTeachers / totalTeachers) *
+                100
+              ).toFixed(1)
+            : 0,
       },
-      
+
       // Student Analytics
       studentAnalytics: {
-        avgSubmissionsPerStudent: studentEngagement[0]?.avgSubmissionsPerStudent?.toFixed(1) || 0,
-        studentsWithNoSubmissions: studentEngagement[0]?.studentsWithNoSubmissions || 0,
-        avgAttendanceRate: studentEngagement[0]?.avgAttendanceRate?.toFixed(1) || 0,
-        atRiskStudents: studentEngagement[0]?.studentsWithNoSubmissions || 0
+        avgSubmissionsPerStudent:
+          studentEngagement[0]?.avgSubmissionsPerStudent?.toFixed(1) || 0,
+        studentsWithNoSubmissions:
+          studentEngagement[0]?.studentsWithNoSubmissions || 0,
+        avgAttendanceRate:
+          studentEngagement[0]?.avgAttendanceRate?.toFixed(1) || 0,
+        atRiskStudents: studentEngagement[0]?.studentsWithNoSubmissions || 0,
       },
-      
+
       // Overall Health Score
       platformHealth: {
         engagementScore: parseFloat(engagementScore),
@@ -378,9 +427,9 @@ export const getAdminStats = async (req, res) => {
           submissionRate,
           onTimeRate,
           classroomUtilizationRate,
-          atRiskStudents: studentEngagement[0]?.studentsWithNoSubmissions || 0
-        })
-      }
+          atRiskStudents: studentEngagement[0]?.studentsWithNoSubmissions || 0,
+        }),
+      },
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -389,34 +438,38 @@ export const getAdminStats = async (req, res) => {
 
 // Helper function to calculate performance grade
 function getPerformanceGrade(score) {
-  if (score >= 90) return 'A+';
-  if (score >= 80) return 'A';
-  if (score >= 70) return 'B';
-  if (score >= 60) return 'C';
-  if (score >= 50) return 'D';
-  return 'F';
+  if (score >= 90) return "A+";
+  if (score >= 80) return "A";
+  if (score >= 70) return "B";
+  if (score >= 60) return "C";
+  if (score >= 50) return "D";
+  return "F";
 }
 
 // Helper function to generate recommendations
 function generateRecommendations(metrics) {
   const recommendations = [];
-  
+
   if (metrics.submissionRate < 70) {
     recommendations.push("Consider sending reminders for pending assignments");
   }
-  
+
   if (metrics.onTimeRate < 60) {
-    recommendations.push("Review assignment deadlines - students may need more time");
+    recommendations.push(
+      "Review assignment deadlines - students may need more time",
+    );
   }
-  
+
   if (metrics.classroomUtilizationRate < 50) {
     recommendations.push("Optimize classroom capacity - many seats are unused");
   }
-  
+
   if (metrics.atRiskStudents > 10) {
-    recommendations.push(`${metrics.atRiskStudents} students haven't submitted any assignments`);
+    recommendations.push(
+      `${metrics.atRiskStudents} students haven't submitted any assignments`,
+    );
   }
-  
+
   return recommendations;
 }
 
@@ -424,87 +477,83 @@ export const getMonthlyGrowth = async (req, res) => {
   try {
     const year = new Date().getFullYear();
 
-    const [
-      userData,
-      classroomData,
-      assignmentData,
-      submissionData,
-    ] = await Promise.all([
-      // USERS
-      User.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(`${year}-01-01`),
-              $lte: new Date(`${year}-12-31`),
+    const [userData, classroomData, assignmentData, submissionData] =
+      await Promise.all([
+        // USERS
+        User.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(`${year}-01-01`),
+                $lte: new Date(`${year}-12-31`),
+              },
             },
           },
-        },
-        {
-          $group: {
-            _id: {
-              month: { $month: "$createdAt" },
-              role: "$role",
+          {
+            $group: {
+              _id: {
+                month: { $month: "$createdAt" },
+                role: "$role",
+              },
+              count: { $sum: 1 },
             },
-            count: { $sum: 1 },
           },
-        },
-      ]),
+        ]),
 
-      // CLASSROOMS
-      Classroom.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(`${year}-01-01`),
-              $lte: new Date(`${year}-12-31`),
+        // CLASSROOMS
+        Classroom.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(`${year}-01-01`),
+                $lte: new Date(`${year}-12-31`),
+              },
             },
           },
-        },
-        {
-          $group: {
-            _id: { month: { $month: "$createdAt" } },
-            count: { $sum: 1 },
+          {
+            $group: {
+              _id: { month: { $month: "$createdAt" } },
+              count: { $sum: 1 },
+            },
           },
-        },
-      ]),
+        ]),
 
-      // ASSIGNMENTS
-      Assignment.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(`${year}-01-01`),
-              $lte: new Date(`${year}-12-31`),
+        // ASSIGNMENTS
+        Assignment.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(`${year}-01-01`),
+                $lte: new Date(`${year}-12-31`),
+              },
             },
           },
-        },
-        {
-          $group: {
-            _id: { month: { $month: "$createdAt" } },
-            count: { $sum: 1 },
+          {
+            $group: {
+              _id: { month: { $month: "$createdAt" } },
+              count: { $sum: 1 },
+            },
           },
-        },
-      ]),
+        ]),
 
-      // SUBMISSIONS
-      Submission.aggregate([
-        {
-          $match: {
-            createdAt: {
-              $gte: new Date(`${year}-01-01`),
-              $lte: new Date(`${year}-12-31`),
+        // SUBMISSIONS
+        Submission.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(`${year}-01-01`),
+                $lte: new Date(`${year}-12-31`),
+              },
             },
           },
-        },
-        {
-          $group: {
-            _id: { month: { $month: "$createdAt" } },
-            count: { $sum: 1 },
+          {
+            $group: {
+              _id: { month: { $month: "$createdAt" } },
+              count: { $sum: 1 },
+            },
           },
-        },
-      ]),
-    ]);
+        ]),
+      ]);
 
     // 🧠 Transform into clean 12 month structure
     const months = Array.from({ length: 12 }, (_, i) => ({
@@ -545,7 +594,6 @@ export const getMonthlyGrowth = async (req, res) => {
     });
 
     res.json(months);
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -607,11 +655,28 @@ export const getAllTeachers = async (req, res) => {
   }
 };
 
-
 /* UPDATE TEACHER */
 export const updateTeacher = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const {
+      name,
+      email,
+      phone,
+      dateOfBirth,
+      gender,
+      bloodGroup,
+      address,
+      department,
+      designation,
+      joiningDate,
+      contractType,
+      shiftTimings,
+      salary,
+      bankAccount,
+      leaveSettings,
+      aadharNumber,
+      panNumber,
+    } = req.body;
 
     const teacher = await User.findById(req.params.id);
 
@@ -619,14 +684,156 @@ export const updateTeacher = async (req, res) => {
       return res.status(404).json({ message: "Teacher not found" });
     }
 
+    // Update basic fields
     if (name) teacher.name = name;
     if (email) teacher.email = email;
+    if (phone !== undefined) teacher.phone = phone;
+    if (dateOfBirth) teacher.dateOfBirth = new Date(dateOfBirth);
+    if (gender) teacher.gender = gender;
+    if (bloodGroup) teacher.bloodGroup = bloodGroup;
+    if (aadharNumber !== undefined) teacher.aadharNumber = aadharNumber;
+    if (panNumber !== undefined) teacher.panNumber = panNumber;
+
+    // Update address
+    if (address) {
+      if (!teacher.address) teacher.address = {};
+      if (address.street !== undefined) teacher.address.street = address.street;
+      if (address.city !== undefined) teacher.address.city = address.city;
+      if (address.state !== undefined) teacher.address.state = address.state;
+      if (address.country !== undefined)
+        teacher.address.country = address.country;
+      if (address.pincode !== undefined)
+        teacher.address.pincode = address.pincode;
+    }
+
+    // Update employeeRecord fields
+    if (!teacher.employeeRecord) {
+      teacher.employeeRecord = {};
+    }
+
+    // Employment details
+    if (department) teacher.employeeRecord.department = department;
+    if (designation) teacher.employeeRecord.designation = designation;
+    if (joiningDate) teacher.employeeRecord.joiningDate = new Date(joiningDate);
+    if (contractType) teacher.employeeRecord.contractType = contractType;
+
+    // Update shift timings
+    if (shiftTimings) {
+      if (!teacher.employeeRecord.shiftTimings) {
+        teacher.employeeRecord.shiftTimings = {};
+      }
+      if (shiftTimings.start !== undefined)
+        teacher.employeeRecord.shiftTimings.start = shiftTimings.start;
+      if (shiftTimings.end !== undefined)
+        teacher.employeeRecord.shiftTimings.end = shiftTimings.end;
+      if (shiftTimings.gracePeriod !== undefined)
+        teacher.employeeRecord.shiftTimings.gracePeriod =
+          shiftTimings.gracePeriod;
+      if (shiftTimings.workingHours !== undefined)
+        teacher.employeeRecord.shiftTimings.workingHours =
+          shiftTimings.workingHours;
+    }
+
+    // Update salary
+    if (salary) {
+      if (!teacher.employeeRecord.salary) {
+        teacher.employeeRecord.salary = {};
+      }
+      if (salary.basic !== undefined)
+        teacher.employeeRecord.salary.basic = salary.basic;
+      if (salary.hra !== undefined)
+        teacher.employeeRecord.salary.hra = salary.hra;
+      if (salary.da !== undefined) teacher.employeeRecord.salary.da = salary.da;
+      if (salary.ta !== undefined) teacher.employeeRecord.salary.ta = salary.ta;
+      if (salary.pf !== undefined) teacher.employeeRecord.salary.pf = salary.pf;
+      if (salary.tax !== undefined)
+        teacher.employeeRecord.salary.tax = salary.tax;
+
+      // Recalculate net salary
+      if (teacher.employeeRecord.salary) {
+        const basic = teacher.employeeRecord.salary.basic || 0;
+        const hra = teacher.employeeRecord.salary.hra || 0;
+        const da = teacher.employeeRecord.salary.da || 0;
+        const ta = teacher.employeeRecord.salary.ta || 0;
+        const pf = teacher.employeeRecord.salary.pf || 0;
+        const tax = teacher.employeeRecord.salary.tax || 0;
+
+        teacher.employeeRecord.salary.netSalary =
+          basic + hra + da + ta - (pf + tax);
+      }
+    }
+
+    // Update bank account details
+    if (bankAccount) {
+      if (!teacher.employeeRecord.salary) {
+        teacher.employeeRecord.salary = {};
+      }
+      if (!teacher.employeeRecord.salary.bankAccount) {
+        teacher.employeeRecord.salary.bankAccount = {};
+      }
+      if (bankAccount.accountNumber !== undefined) {
+        teacher.employeeRecord.salary.bankAccount.accountNumber =
+          bankAccount.accountNumber;
+      }
+      if (bankAccount.ifscCode !== undefined) {
+        teacher.employeeRecord.salary.bankAccount.ifscCode =
+          bankAccount.ifscCode;
+      }
+      if (bankAccount.bankName !== undefined) {
+        teacher.employeeRecord.salary.bankAccount.bankName =
+          bankAccount.bankName;
+      }
+    }
+
+    // Update leave settings
+    if (leaveSettings) {
+      if (!teacher.employeeRecord.leaves) {
+        teacher.employeeRecord.leaves = {
+          total: 30,
+          taken: 0,
+          remaining: 30,
+          records: [],
+        };
+      }
+
+      if (leaveSettings.total !== undefined) {
+        const oldTotal = teacher.employeeRecord.leaves.total || 30;
+        const taken = teacher.employeeRecord.leaves.taken || 0;
+
+        teacher.employeeRecord.leaves.total = leaveSettings.total;
+        teacher.employeeRecord.leaves.remaining = leaveSettings.total - taken;
+      }
+
+      if (leaveSettings.taken !== undefined) {
+        const total = teacher.employeeRecord.leaves.total || 30;
+
+        teacher.employeeRecord.leaves.taken = leaveSettings.taken;
+        teacher.employeeRecord.leaves.remaining = total - leaveSettings.taken;
+      }
+
+      if (leaveSettings.remaining !== undefined) {
+        teacher.employeeRecord.leaves.remaining = leaveSettings.remaining;
+      }
+    }
 
     await teacher.save();
 
-    res.json(teacher);
+    // Return updated teacher with populated fields
+    const updatedTeacher = await User.findById(req.params.id).select(
+      "-password",
+    );
+
+    res.json({
+      success: true,
+      message: "Teacher updated successfully",
+      teacher: updatedTeacher,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error in updateTeacher:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -635,9 +842,9 @@ export const getStudentDetails = async (req, res) => {
     const student = await User.findById(req.params.id)
       .select("-password") // Exclude password, include everything else
       .populate({
-        path: 'enrolledCourses.courseId',
-        model: 'Course',
-        select: 'title code credits department level duration fee status'
+        path: "enrolledCourses.courseId",
+        model: "Course",
+        select: "title code credits department level duration fee status",
       });
 
     if (!student || student.role !== "STUDENT") {
@@ -653,44 +860,44 @@ export const getStudentDetails = async (req, res) => {
       email: student.email,
       role: student.role,
       avatar: student.avatar,
-      
+
       // Unique identifiers
       uniqueId: student.uniqueId,
       enrollmentNumber: student.enrollmentNumber,
       aadharNumber: student.aadharNumber,
       panNumber: student.panNumber,
-      
+
       // Personal Details
       phone: student.phone,
       dateOfBirth: student.dateOfBirth,
       gender: student.gender,
       bloodGroup: student.bloodGroup,
       address: student.address,
-      
+
       // Academic Details
       batch: student.batch,
       currentSemester: student.currentSemester,
       cgpa: student.cgpa,
       backlogs: student.backlogs,
-      
+
       // Education History
       education: student.education || [],
-      
+
       // Skills
       skills: student.skills || [],
-      
+
       // Job Preferences
       jobPreferences: student.jobPreferences || {},
-      
+
       // Social Links
       socialLinks: student.socialLinks || {},
-      
+
       // Status
       isProfileComplete: student.isProfileComplete,
       isPlacementEligible: student.isPlacementEligible,
       placementStatus: student.placementStatus,
       isActive: student.isActive,
-      
+
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
     };
@@ -698,7 +905,8 @@ export const getStudentDetails = async (req, res) => {
     /* ================= CLASSROOMS ================= */
     const classrooms = await Classroom.find({
       students: student._id,
-    }).select("_id name status teacher")
+    })
+      .select("_id name status teacher")
       .populate("teacher", "name email");
 
     const classroomIds = classrooms.map((c) => c._id);
@@ -715,7 +923,7 @@ export const getStudentDetails = async (req, res) => {
 
     const detailedAssignments = assignments.map((assignment) => {
       const submission = submissions.find(
-        (s) => s.assignmentId?._id.toString() === assignment._id.toString()
+        (s) => s.assignmentId?._id.toString() === assignment._id.toString(),
       );
 
       let status = "PENDING";
@@ -749,26 +957,29 @@ export const getStudentDetails = async (req, res) => {
     });
 
     /* ================= ENROLLED COURSES ================= */
-    const enrolledCourses = student.enrolledCourses?.map(enrollment => ({
-      courseId: enrollment.courseId?._id,
-      courseCode: enrollment.courseCode,
-      courseName: enrollment.courseName,
-      status: enrollment.status,
-      enrollmentDate: enrollment.enrollmentDate,
-      grade: enrollment.grade,
-      percentage: enrollment.percentage,
-      completionDate: enrollment.completionDate,
-      certificateIssued: enrollment.certificateIssued,
-      courseDetails: enrollment.courseId ? {
-        title: enrollment.courseId.title,
-        code: enrollment.courseId.code,
-        credits: enrollment.courseId.credits,
-        department: enrollment.courseId.department,
-        level: enrollment.courseId.level,
-        duration: enrollment.courseId.duration,
-        fee: enrollment.courseId.fee
-      } : null
-    })) || [];
+    const enrolledCourses =
+      student.enrolledCourses?.map((enrollment) => ({
+        courseId: enrollment.courseId?._id,
+        courseCode: enrollment.courseCode,
+        courseName: enrollment.courseName,
+        status: enrollment.status,
+        enrollmentDate: enrollment.enrollmentDate,
+        grade: enrollment.grade,
+        percentage: enrollment.percentage,
+        completionDate: enrollment.completionDate,
+        certificateIssued: enrollment.certificateIssued,
+        courseDetails: enrollment.courseId
+          ? {
+              title: enrollment.courseId.title,
+              code: enrollment.courseId.code,
+              credits: enrollment.courseId.credits,
+              department: enrollment.courseId.department,
+              level: enrollment.courseId.level,
+              duration: enrollment.courseId.duration,
+              fee: enrollment.courseId.fee,
+            }
+          : null,
+      })) || [];
 
     /* ================= CERTIFICATES ================= */
     const certificates = await StudentCertificate.find({
@@ -781,11 +992,11 @@ export const getStudentDetails = async (req, res) => {
     }).populate("classroomId", "name");
 
     const present = attendanceRecords.filter(
-      (a) => a.status === "PRESENT"
+      (a) => a.status === "PRESENT",
     ).length;
 
     const absent = attendanceRecords.filter(
-      (a) => a.status === "ABSENT"
+      (a) => a.status === "ABSENT",
     ).length;
 
     const totalDays = present + absent;
@@ -801,15 +1012,15 @@ export const getStudentDetails = async (req, res) => {
           _id: null,
           totalSubmissions: { $sum: 1 },
           totalScore: { $sum: "$totalScore" },
-          averageScore: { $avg: "$totalScore" }
-        }
-      }
+          averageScore: { $avg: "$totalScore" },
+        },
+      },
     ]);
 
     /* ================= PERFORMANCE ================= */
     const totalAssignments = detailedAssignments.length;
     const submittedCount = detailedAssignments.filter(
-      (a) => a.status !== "PENDING" && a.status !== "MISSED"
+      (a) => a.status !== "PENDING" && a.status !== "MISSED",
     ).length;
 
     const averageScore =
@@ -829,7 +1040,7 @@ export const getStudentDetails = async (req, res) => {
           total: classrooms.length,
           list: classrooms,
         },
-        
+
         // Assignment stats
         assignments: {
           total: totalAssignments,
@@ -838,17 +1049,20 @@ export const getStudentDetails = async (req, res) => {
           averageScore: averageScore.toFixed(2),
           list: detailedAssignments,
         },
-        
+
         // Course stats
         courses: {
           total: enrolledCourses.length,
-          completed: enrolledCourses.filter(c => c.status === "completed").length,
-          inProgress: enrolledCourses.filter(c => c.status === "in_progress").length,
-          enrolled: enrolledCourses.filter(c => c.status === "enrolled").length,
-          dropped: enrolledCourses.filter(c => c.status === "dropped").length,
+          completed: enrolledCourses.filter((c) => c.status === "completed")
+            .length,
+          inProgress: enrolledCourses.filter((c) => c.status === "in_progress")
+            .length,
+          enrolled: enrolledCourses.filter((c) => c.status === "enrolled")
+            .length,
+          dropped: enrolledCourses.filter((c) => c.status === "dropped").length,
           list: enrolledCourses,
         },
-        
+
         // Attendance stats
         attendance: {
           totalDays,
@@ -857,13 +1071,13 @@ export const getStudentDetails = async (req, res) => {
           attendancePercentage: parseFloat(attendancePercentage),
           records: attendanceRecords.slice(0, 20), // Last 20 records
         },
-        
+
         // Certificate stats
         certificates: {
           total: certificates.length,
           list: certificates,
         },
-        
+
         // Submission stats
         submissions: {
           total: submissionStats[0]?.totalSubmissions || 0,
@@ -871,19 +1085,20 @@ export const getStudentDetails = async (req, res) => {
           averageScore: submissionStats[0]?.averageScore?.toFixed(2) || 0,
           list: submissions.slice(0, 10), // Last 10 submissions
         },
-        
+
         // Education stats
         education: {
           total: student.education?.length || 0,
-          highestDegree: student.education?.sort((a, b) => b.yearOfPassing - a.yearOfPassing)[0]?.degree,
+          highestDegree: student.education?.sort(
+            (a, b) => b.yearOfPassing - a.yearOfPassing,
+          )[0]?.degree,
           list: student.education || [],
         },
-        
+
         // Skills
         skills: student.skills || [],
       },
     });
-
   } catch (error) {
     console.error("Error in getStudentDetails:", error);
     res.status(500).json({
@@ -892,8 +1107,6 @@ export const getStudentDetails = async (req, res) => {
     });
   }
 };
-
-
 
 /* ================= GET ALL STUDENTS ================= */
 export const getAllStudents = async (req, res) => {
@@ -907,7 +1120,6 @@ export const getAllStudents = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 /* ================= UPDATE STUDENT ================= */
 export const updateStudent = async (req, res) => {
@@ -972,10 +1184,8 @@ export const getAllAssignmentsAdmin = async (req, res) => {
 
         const avg =
           submissions.length > 0
-            ? submissions.reduce(
-                (sum, s) => sum + (s.totalScore || 0),
-                0
-              ) / submissions.length
+            ? submissions.reduce((sum, s) => sum + (s.totalScore || 0), 0) /
+              submissions.length
             : 0;
 
         return {
@@ -989,7 +1199,7 @@ export const getAllAssignmentsAdmin = async (req, res) => {
           totalSubmissions,
           averageScore: avg,
         };
-      })
+      }),
     );
 
     res.json(formatted);
@@ -1032,7 +1242,7 @@ export const getStudentAnalytics = async (req, res) => {
       bottomPerformers,
       pendingSubmissions,
       classroomDistribution,
-      attendanceAnalytics
+      attendanceAnalytics,
     ] = await Promise.all([
       // Total student count
       User.countDocuments({ role: "STUDENT" }),
@@ -1044,16 +1254,16 @@ export const getStudentAnalytics = async (req, res) => {
             _id: "$studentId",
             totalScore: { $sum: "$totalScore" },
             submissionCount: { $sum: 1 },
-            averageScore: { $avg: "$totalScore" }
-          }
+            averageScore: { $avg: "$totalScore" },
+          },
         },
         {
           $lookup: {
             from: "users",
             localField: "_id",
             foreignField: "_id",
-            as: "student"
-          }
+            as: "student",
+          },
         },
         { $unwind: "$student" },
         {
@@ -1062,10 +1272,10 @@ export const getStudentAnalytics = async (req, res) => {
             email: "$student.email",
             totalScore: 1,
             submissionCount: 1,
-            averageScore: { $round: ["$averageScore", 2] }
-          }
+            averageScore: { $round: ["$averageScore", 2] },
+          },
         },
-        { $sort: { averageScore: -1 } }
+        { $sort: { averageScore: -1 } },
       ]),
 
       // Top 3 performers
@@ -1075,16 +1285,16 @@ export const getStudentAnalytics = async (req, res) => {
             _id: "$studentId",
             averageScore: { $avg: "$totalScore" },
             totalSubmissions: { $sum: 1 },
-            totalScore: { $sum: "$totalScore" }
-          }
+            totalScore: { $sum: "$totalScore" },
+          },
         },
         {
           $lookup: {
             from: "users",
             localField: "_id",
             foreignField: "_id",
-            as: "student"
-          }
+            as: "student",
+          },
         },
         { $unwind: "$student" },
         {
@@ -1093,11 +1303,11 @@ export const getStudentAnalytics = async (req, res) => {
             email: "$student.email",
             averageScore: { $round: ["$averageScore", 2] },
             totalSubmissions: 1,
-            totalScore: 1
-          }
+            totalScore: 1,
+          },
         },
         { $sort: { averageScore: -1 } },
-        { $limit: 3 }
+        { $limit: 3 },
       ]),
 
       // Bottom 3 performers (with submissions)
@@ -1106,16 +1316,16 @@ export const getStudentAnalytics = async (req, res) => {
           $group: {
             _id: "$studentId",
             averageScore: { $avg: "$totalScore" },
-            totalSubmissions: { $sum: 1 }
-          }
+            totalSubmissions: { $sum: 1 },
+          },
         },
         {
           $lookup: {
             from: "users",
             localField: "_id",
             foreignField: "_id",
-            as: "student"
-          }
+            as: "student",
+          },
         },
         { $unwind: "$student" },
         {
@@ -1123,11 +1333,11 @@ export const getStudentAnalytics = async (req, res) => {
             name: "$student.name",
             email: "$student.email",
             averageScore: { $round: ["$averageScore", 2] },
-            totalSubmissions: 1
-          }
+            totalSubmissions: 1,
+          },
         },
         { $sort: { averageScore: 1 } },
-        { $limit: 3 }
+        { $limit: 3 },
       ]),
 
       // Students with pending submissions
@@ -1140,21 +1350,21 @@ export const getStudentAnalytics = async (req, res) => {
             pipeline: [
               {
                 $match: {
-                  $expr: { $eq: ["$assignmentId", "$$assignmentId"] }
-                }
+                  $expr: { $eq: ["$assignmentId", "$$assignmentId"] },
+                },
               },
-              { $project: { studentId: 1 } }
+              { $project: { studentId: 1 } },
             ],
-            as: "submissions"
-          }
+            as: "submissions",
+          },
         },
         {
           $lookup: {
             from: "classrooms",
             localField: "classroomId",
             foreignField: "_id",
-            as: "classroom"
-          }
+            as: "classroom",
+          },
         },
         { $unwind: "$classroom" },
         {
@@ -1163,8 +1373,8 @@ export const getStudentAnalytics = async (req, res) => {
             title: 1,
             classroomName: "$classroom.name",
             submittedStudents: "$submissions.studentId",
-            allStudents: "$classroom.students"
-          }
+            allStudents: "$classroom.students",
+          },
         },
         {
           $project: {
@@ -1172,9 +1382,9 @@ export const getStudentAnalytics = async (req, res) => {
             title: 1,
             classroomName: 1,
             pendingStudents: {
-              $setDifference: ["$allStudents", "$submittedStudents"]
-            }
-          }
+              $setDifference: ["$allStudents", "$submittedStudents"],
+            },
+          },
         },
         { $unwind: "$pendingStudents" },
         {
@@ -1182,8 +1392,8 @@ export const getStudentAnalytics = async (req, res) => {
             from: "users",
             localField: "pendingStudents",
             foreignField: "_id",
-            as: "student"
-          }
+            as: "student",
+          },
         },
         { $unwind: "$student" },
         {
@@ -1194,14 +1404,14 @@ export const getStudentAnalytics = async (req, res) => {
             pendingAssignments: {
               $push: {
                 title: "$title",
-                classroom: "$classroomName"
-              }
+                classroom: "$classroomName",
+              },
             },
-            count: { $sum: 1 }
-          }
+            count: { $sum: 1 },
+          },
         },
         { $sort: { count: -1 } },
-        { $limit: 5 }
+        { $limit: 5 },
       ]),
 
       // Student distribution by classroom
@@ -1209,8 +1419,8 @@ export const getStudentAnalytics = async (req, res) => {
         {
           $project: {
             name: 1,
-            studentCount: { $size: "$students" }
-          }
+            studentCount: { $size: "$students" },
+          },
         },
         { $sort: { studentCount: -1 } },
         {
@@ -1220,12 +1430,12 @@ export const getStudentAnalytics = async (req, res) => {
             classrooms: {
               $push: {
                 name: "$name",
-                count: "$studentCount"
-              }
+                count: "$studentCount",
+              },
             },
-            avgStudentsPerClass: { $avg: "$studentCount" }
-          }
-        }
+            avgStudentsPerClass: { $avg: "$studentCount" },
+          },
+        },
       ]),
 
       // Attendance analytics
@@ -1234,18 +1444,18 @@ export const getStudentAnalytics = async (req, res) => {
           $group: {
             _id: "$studentId",
             presentCount: {
-              $sum: { $cond: [{ $eq: ["$status", "PRESENT"] }, 1, 0] }
+              $sum: { $cond: [{ $eq: ["$status", "PRESENT"] }, 1, 0] },
             },
-            totalDays: { $sum: 1 }
-          }
+            totalDays: { $sum: 1 },
+          },
         },
         {
           $lookup: {
             from: "users",
             localField: "_id",
             foreignField: "_id",
-            as: "student"
-          }
+            as: "student",
+          },
         },
         { $unwind: "$student" },
         {
@@ -1254,42 +1464,52 @@ export const getStudentAnalytics = async (req, res) => {
             email: "$student.email",
             attendanceRate: {
               $round: [
-                { $multiply: [{ $divide: ["$presentCount", "$totalDays"] }, 100] },
-                2
-              ]
+                {
+                  $multiply: [
+                    { $divide: ["$presentCount", "$totalDays"] },
+                    100,
+                  ],
+                },
+                2,
+              ],
             },
             presentCount: 1,
-            totalDays: 1
-          }
+            totalDays: 1,
+          },
         },
         { $sort: { attendanceRate: -1 } },
         {
           $group: {
             _id: null,
             topAttendance: { $push: "$$ROOT" },
-            avgAttendanceRate: { $avg: "$attendanceRate" }
-          }
+            avgAttendanceRate: { $avg: "$attendanceRate" },
+          },
         },
         {
           $project: {
             topAttendance: { $slice: ["$topAttendance", 3] },
-            avgAttendanceRate: { $round: ["$avgAttendanceRate", 2] }
-          }
-        }
-      ])
+            avgAttendanceRate: { $round: ["$avgAttendanceRate", 2] },
+          },
+        },
+      ]),
     ]);
 
     // Calculate additional metrics
     const studentsWithSubmissions = studentPerformance.length;
     const studentsWithoutSubmissions = totalStudents - studentsWithSubmissions;
-    const submissionRate = totalStudents > 0 
-      ? ((studentsWithSubmissions / totalStudents) * 100).toFixed(1)
-      : "0";
+    const submissionRate =
+      totalStudents > 0
+        ? ((studentsWithSubmissions / totalStudents) * 100).toFixed(1)
+        : "0";
 
     // Overall averages
-    const overallAverageScore = studentPerformance.length > 0
-      ? (studentPerformance.reduce((acc, s) => acc + s.averageScore, 0) / studentPerformance.length).toFixed(2)
-      : "0";
+    const overallAverageScore =
+      studentPerformance.length > 0
+        ? (
+            studentPerformance.reduce((acc, s) => acc + s.averageScore, 0) /
+            studentPerformance.length
+          ).toFixed(2)
+        : "0";
 
     res.json({
       overview: {
@@ -1297,37 +1517,39 @@ export const getStudentAnalytics = async (req, res) => {
         studentsWithSubmissions,
         studentsWithoutSubmissions,
         submissionRate: parseFloat(submissionRate),
-        overallAverageScore: parseFloat(overallAverageScore)
+        overallAverageScore: parseFloat(overallAverageScore),
       },
-      
+
       performers: {
         top3: topPerformers,
-        bottom3: bottomPerformers
+        bottom3: bottomPerformers,
       },
-      
+
       pendingWork: {
         studentsWithPending: pendingSubmissions,
-        totalPendingAssignments: pendingSubmissions.reduce((acc, s) => acc + s.count, 0)
+        totalPendingAssignments: pendingSubmissions.reduce(
+          (acc, s) => acc + s.count,
+          0,
+        ),
       },
-      
+
       classroomDistribution: classroomDistribution[0] || {
         totalStudents: 0,
         classrooms: [],
-        avgStudentsPerClass: 0
+        avgStudentsPerClass: 0,
       },
-      
+
       attendance: attendanceAnalytics[0] || {
         topAttendance: [],
-        avgAttendanceRate: 0
+        avgAttendanceRate: 0,
       },
-      
+
       performance: {
         topScorer: topPerformers[0] || null,
         needsAttention: bottomPerformers[0] || null,
-        mostPending: pendingSubmissions[0] || null
-      }
+        mostPending: pendingSubmissions[0] || null,
+      },
     });
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1339,7 +1561,9 @@ export const getStudentAnalytics = async (req, res) => {
 export const getAllFacultyAdmins = async (req, res) => {
   try {
     const facultyAdmins = await User.find({ role: "FACULTY_ADMIN" })
-      .select("_id name email phone employeeRecord.employeeId employeeRecord.department")
+      .select(
+        "_id name email phone employeeRecord.employeeId employeeRecord.department",
+      )
       .sort({ createdAt: -1 });
 
     res.json(facultyAdmins);
@@ -1351,9 +1575,9 @@ export const getAllFacultyAdmins = async (req, res) => {
 // Create faculty admin
 export const createFacultyAdmin = async (req, res) => {
   try {
-    const { 
-      name, 
-      email, 
+    const {
+      name,
+      email,
       password,
       phone,
       dateOfBirth,
@@ -1365,7 +1589,7 @@ export const createFacultyAdmin = async (req, res) => {
       department,
       designation,
       joiningDate,
-      salary
+      salary,
     } = req.body;
 
     // Check if email already exists
@@ -1375,7 +1599,7 @@ export const createFacultyAdmin = async (req, res) => {
     }
 
     const hashedPassword = password;
-    const employeeId = generateEmployeeId("FACULTY_ADMIN",Date.now());
+    const employeeId = generateEmployeeId("FACULTY_ADMIN", Date.now());
     const uniqueId = generateUniqueId("FACULTY_ADMIN", name);
 
     const facultyAdmin = await User.create({
@@ -1404,16 +1628,16 @@ export const createFacultyAdmin = async (req, res) => {
           ta: 3000,
           pf: 6000,
           tax: 8000,
-          netSalary: 50000 + 20000 + 7500 + 3000 - 6000 - 8000
-        }
-      }
+          netSalary: 50000 + 20000 + 7500 + 3000 - 6000 - 8000,
+        },
+      },
     });
 
     res.status(201).json({
       _id: facultyAdmin._id,
       name: facultyAdmin.name,
       email: facultyAdmin.email,
-      employeeId: facultyAdmin.employeeRecord.employeeId
+      employeeId: facultyAdmin.employeeRecord.employeeId,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1421,9 +1645,28 @@ export const createFacultyAdmin = async (req, res) => {
 };
 
 // Update faculty admin
+// Update faculty admin (FIXED)
 export const updateFacultyAdmin = async (req, res) => {
   try {
-    const { name, email, phone, department, designation, salary } = req.body;
+    const { 
+      name, 
+      email, 
+      phone, 
+      dateOfBirth,
+      gender,
+      bloodGroup,
+      address,
+      aadharNumber,
+      panNumber,
+      department, 
+      designation,
+      joiningDate,
+      contractType,
+      shiftTimings,
+      salary,
+      bankAccount,
+      leaveSettings
+    } = req.body;
 
     const facultyAdmin = await User.findById(req.params.id);
 
@@ -1431,26 +1674,140 @@ export const updateFacultyAdmin = async (req, res) => {
       return res.status(404).json({ message: "Faculty admin not found" });
     }
 
+    // Update basic fields
     if (name) facultyAdmin.name = name;
     if (email) facultyAdmin.email = email;
-    if (phone) facultyAdmin.phone = phone;
-    
-    if (facultyAdmin.employeeRecord) {
-      if (department) facultyAdmin.employeeRecord.department = department;
-      if (designation) facultyAdmin.employeeRecord.designation = designation;
+    if (phone !== undefined) facultyAdmin.phone = phone;
+    if (dateOfBirth) facultyAdmin.dateOfBirth = new Date(dateOfBirth);
+    if (gender) facultyAdmin.gender = gender;
+    if (bloodGroup) facultyAdmin.bloodGroup = bloodGroup;
+    if (aadharNumber !== undefined) facultyAdmin.aadharNumber = aadharNumber;
+    if (panNumber !== undefined) facultyAdmin.panNumber = panNumber;
+
+    // Update address
+    if (address) {
+      if (!facultyAdmin.address) facultyAdmin.address = {};
+      if (address.street !== undefined) facultyAdmin.address.street = address.street;
+      if (address.city !== undefined) facultyAdmin.address.city = address.city;
+      if (address.state !== undefined) facultyAdmin.address.state = address.state;
+      if (address.country !== undefined) facultyAdmin.address.country = address.country;
+      if (address.pincode !== undefined) facultyAdmin.address.pincode = address.pincode;
+    }
+
+    // Update employeeRecord fields
+    if (!facultyAdmin.employeeRecord) {
+      facultyAdmin.employeeRecord = {};
+    }
+
+    // Employment details
+    if (department) facultyAdmin.employeeRecord.department = department;
+    if (designation) facultyAdmin.employeeRecord.designation = designation;
+    if (joiningDate) facultyAdmin.employeeRecord.joiningDate = new Date(joiningDate);
+    if (contractType) facultyAdmin.employeeRecord.contractType = contractType;
+
+    // Update shift timings
+    if (shiftTimings) {
+      if (!facultyAdmin.employeeRecord.shiftTimings) {
+        facultyAdmin.employeeRecord.shiftTimings = {};
+      }
+      if (shiftTimings.start !== undefined) facultyAdmin.employeeRecord.shiftTimings.start = shiftTimings.start;
+      if (shiftTimings.end !== undefined) facultyAdmin.employeeRecord.shiftTimings.end = shiftTimings.end;
+      if (shiftTimings.gracePeriod !== undefined) facultyAdmin.employeeRecord.shiftTimings.gracePeriod = shiftTimings.gracePeriod;
+      if (shiftTimings.workingHours !== undefined) facultyAdmin.employeeRecord.shiftTimings.workingHours = shiftTimings.workingHours;
+    }
+
+    // Update salary and bank account - FIXED
+    if (salary || bankAccount) {
+      if (!facultyAdmin.employeeRecord.salary) {
+        facultyAdmin.employeeRecord.salary = {};
+      }
+      
+      // Update salary fields if provided
       if (salary) {
-        facultyAdmin.employeeRecord.salary = {
-          ...facultyAdmin.employeeRecord.salary,
-          ...salary
+        if (salary.basic !== undefined) facultyAdmin.employeeRecord.salary.basic = salary.basic;
+        if (salary.hra !== undefined) facultyAdmin.employeeRecord.salary.hra = salary.hra;
+        if (salary.da !== undefined) facultyAdmin.employeeRecord.salary.da = salary.da;
+        if (salary.ta !== undefined) facultyAdmin.employeeRecord.salary.ta = salary.ta;
+        if (salary.pf !== undefined) facultyAdmin.employeeRecord.salary.pf = salary.pf;
+        if (salary.tax !== undefined) facultyAdmin.employeeRecord.salary.tax = salary.tax;
+        if (salary.netSalary !== undefined) facultyAdmin.employeeRecord.salary.netSalary = salary.netSalary;
+      }
+      
+      // Update bank account - FIXED: Only set if bankAccount has properties
+      if (bankAccount && Object.keys(bankAccount).length > 0) {
+        if (!facultyAdmin.employeeRecord.salary.bankAccount) {
+          facultyAdmin.employeeRecord.salary.bankAccount = {};
+        }
+        if (bankAccount.accountNumber !== undefined) {
+          facultyAdmin.employeeRecord.salary.bankAccount.accountNumber = bankAccount.accountNumber;
+        }
+        if (bankAccount.ifscCode !== undefined) {
+          facultyAdmin.employeeRecord.salary.bankAccount.ifscCode = bankAccount.ifscCode;
+        }
+        if (bankAccount.bankName !== undefined) {
+          facultyAdmin.employeeRecord.salary.bankAccount.bankName = bankAccount.bankName;
+        }
+      }
+
+      // Recalculate net salary if basic salary components changed
+      const basic = facultyAdmin.employeeRecord.salary.basic || 0;
+      const hra = facultyAdmin.employeeRecord.salary.hra || 0;
+      const da = facultyAdmin.employeeRecord.salary.da || 0;
+      const ta = facultyAdmin.employeeRecord.salary.ta || 0;
+      const pf = facultyAdmin.employeeRecord.salary.pf || 0;
+      const tax = facultyAdmin.employeeRecord.salary.tax || 0;
+      
+      facultyAdmin.employeeRecord.salary.netSalary = (basic + hra + da + ta) - (pf + tax);
+    }
+
+    // Update leave settings
+    if (leaveSettings) {
+      if (!facultyAdmin.employeeRecord.leaves) {
+        facultyAdmin.employeeRecord.leaves = {
+          total: 30,
+          taken: 0,
+          remaining: 30,
+          records: []
         };
+      }
+      
+      if (leaveSettings.totalLeaves !== undefined) {
+        const oldTotal = facultyAdmin.employeeRecord.leaves.total || 30;
+        const taken = facultyAdmin.employeeRecord.leaves.taken || 0;
+        
+        facultyAdmin.employeeRecord.leaves.total = leaveSettings.totalLeaves;
+        facultyAdmin.employeeRecord.leaves.remaining = leaveSettings.totalLeaves - taken;
+      }
+      
+      if (leaveSettings.taken !== undefined) {
+        const total = facultyAdmin.employeeRecord.leaves.total || 30;
+        
+        facultyAdmin.employeeRecord.leaves.taken = leaveSettings.taken;
+        facultyAdmin.employeeRecord.leaves.remaining = total - leaveSettings.taken;
+      }
+      
+      if (leaveSettings.remaining !== undefined) {
+        facultyAdmin.employeeRecord.leaves.remaining = leaveSettings.remaining;
       }
     }
 
     await facultyAdmin.save();
 
-    res.json(facultyAdmin);
+    // Return updated faculty admin
+    const updatedFacultyAdmin = await User.findById(req.params.id)
+      .select("-password");
+
+    res.json({
+      success: true,
+      message: "Faculty admin updated successfully",
+      facultyAdmin: updatedFacultyAdmin
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error in updateFacultyAdmin:", error);
+    res.status(500).json({ 
+      success: false,
+      message: error.message 
+    });
   }
 };
 
@@ -1466,7 +1823,7 @@ export const deleteFacultyAdmin = async (req, res) => {
     // Delete related records
     await EmployeeDocument.deleteMany({ employeeId: facultyAdmin._id });
     await Payslip.deleteMany({ employeeId: facultyAdmin._id });
-    
+
     await facultyAdmin.deleteOne();
 
     res.json({ message: "Faculty admin deleted successfully" });
@@ -1478,40 +1835,39 @@ export const deleteFacultyAdmin = async (req, res) => {
 // Get faculty admin details
 export const getFacultyAdminDetails = async (req, res) => {
   try {
-    const facultyAdmin = await User.findById(req.params.id)
-      .select("-password");
+    const facultyAdmin = await User.findById(req.params.id).select("-password");
 
     if (!facultyAdmin || facultyAdmin.role !== "FACULTY_ADMIN") {
       return res.status(404).json({ message: "Faculty admin not found" });
     }
 
     // Get documents managed
-    const documents = await EmployeeDocument.find({ 
-      employeeId: facultyAdmin._id 
+    const documents = await EmployeeDocument.find({
+      employeeId: facultyAdmin._id,
     }).sort({ createdAt: -1 });
 
     // Get payslips
-    const payslips = await Payslip.find({ 
-      employeeId: facultyAdmin._id 
+    const payslips = await Payslip.find({
+      employeeId: facultyAdmin._id,
     }).sort({ year: -1, month: -1 });
 
     // Get recent activity (documents uploaded)
     const recentActivity = await EmployeeDocument.find({
-      uploadedBy: facultyAdmin._id
+      uploadedBy: facultyAdmin._id,
     })
-    .populate("employeeId", "name")
-    .limit(10)
-    .sort({ createdAt: -1 });
+      .populate("employeeId", "name")
+      .limit(10)
+      .sort({ createdAt: -1 });
 
     res.json({
       facultyAdmin,
       stats: {
         totalDocuments: documents.length,
         totalPayslips: payslips.length,
-        recentActivity
+        recentActivity,
       },
       documents,
-      payslips
+      payslips,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1523,11 +1879,11 @@ export const getFacultyAdminDetails = async (req, res) => {
 // Get all employees (teachers + faculty admins)
 export const getAllEmployees = async (req, res) => {
   try {
-    const employees = await User.find({ 
-      role: { $in: ["TEACHER", "FACULTY_ADMIN"] } 
+    const employees = await User.find({
+      role: { $in: ["TEACHER", "FACULTY_ADMIN"] },
     })
-    .select("_id name email role employeeRecord phone")
-    .sort({ createdAt: -1 });
+      .select("_id name email role employeeRecord phone")
+      .sort({ createdAt: -1 });
 
     res.json(employees);
   } catch (error) {
@@ -1539,15 +1895,17 @@ export const getAllEmployees = async (req, res) => {
 export const getEmployeeAttendance = async (req, res) => {
   try {
     const { month, year } = req.query;
-    const queryDate = month && year ? 
-      { 
-        $expr: { 
-          $and: [
-            { $eq: [{ $month: "$date" }, parseInt(month)] },
-            { $eq: [{ $year: "$date" }, parseInt(year)] }
-          ]
-        }
-      } : {};
+    const queryDate =
+      month && year
+        ? {
+            $expr: {
+              $and: [
+                { $eq: [{ $month: "$date" }, parseInt(month)] },
+                { $eq: [{ $year: "$date" }, parseInt(year)] },
+              ],
+            },
+          }
+        : {};
 
     const attendance = await Attendance.aggregate([
       { $match: queryDate },
@@ -1556,8 +1914,8 @@ export const getEmployeeAttendance = async (req, res) => {
           from: "users",
           localField: "studentId",
           foreignField: "_id",
-          as: "student"
-        }
+          as: "student",
+        },
       },
       { $unwind: "$student" },
       {
@@ -1565,22 +1923,25 @@ export const getEmployeeAttendance = async (req, res) => {
           _id: "$studentId",
           name: { $first: "$student.name" },
           present: {
-            $sum: { $cond: [{ $eq: ["$status", "PRESENT"] }, 1, 0] }
+            $sum: { $cond: [{ $eq: ["$status", "PRESENT"] }, 1, 0] },
           },
-          total: { $sum: 1 }
-        }
+          total: { $sum: 1 },
+        },
       },
       {
         $project: {
           name: 1,
           attendanceRate: {
-            $round: [{ $multiply: [{ $divide: ["$present", "$total"] }, 100] }, 2]
+            $round: [
+              { $multiply: [{ $divide: ["$present", "$total"] }, 100] },
+              2,
+            ],
           },
           present: 1,
-          total: 1
-        }
+          total: 1,
+        },
       },
-      { $sort: { attendanceRate: -1 } }
+      { $sort: { attendanceRate: -1 } },
     ]);
 
     res.json(attendance);
@@ -1605,15 +1966,23 @@ export const generatePayslip = async (req, res) => {
     const existingPayslip = await Payslip.findOne({
       employeeId,
       month,
-      year
+      year,
     });
 
     if (existingPayslip) {
-      return res.status(400).json({ message: "Payslip already exists for this month" });
+      return res
+        .status(400)
+        .json({ message: "Payslip already exists for this month" });
     }
 
-    const totalEarnings = Object.values(earnings).reduce((a, b) => a + (b || 0), 0);
-    const totalDeductions = Object.values(deductions).reduce((a, b) => a + (b || 0), 0);
+    const totalEarnings = Object.values(earnings).reduce(
+      (a, b) => a + (b || 0),
+      0,
+    );
+    const totalDeductions = Object.values(deductions).reduce(
+      (a, b) => a + (b || 0),
+      0,
+    );
     const netSalary = totalEarnings - totalDeductions;
 
     const payslip = await Payslip.create({
@@ -1622,16 +1991,16 @@ export const generatePayslip = async (req, res) => {
       year,
       earnings: {
         ...earnings,
-        totalEarnings
+        totalEarnings,
       },
       deductions: {
         ...deductions,
-        totalDeductions
+        totalDeductions,
       },
       netSalary,
       bankDetails: employee.employeeRecord?.salary?.bankAccount || {},
       generatedBy: req.user._id,
-      paymentStatus: "PROCESSED"
+      paymentStatus: "PROCESSED",
     });
 
     res.status(201).json(payslip);
@@ -1674,13 +2043,13 @@ export const getPayrollSummary = async (req, res) => {
         $group: {
           _id: {
             year: "$year",
-            month: "$month"
+            month: "$month",
           },
           totalPayroll: { $sum: "$netSalary" },
           avgSalary: { $avg: "$netSalary" },
           count: { $sum: 1 },
-          salaries: { $push: "$netSalary" }
-        }
+          salaries: { $push: "$netSalary" },
+        },
       },
       {
         $project: {
@@ -1691,10 +2060,10 @@ export const getPayrollSummary = async (req, res) => {
           avgSalary: { $round: ["$avgSalary", 2] },
           count: 1,
           minSalary: { $min: "$salaries" },
-          maxSalary: { $max: "$salaries" }
-        }
+          maxSalary: { $max: "$salaries" },
+        },
       },
-      { $sort: { year: -1, month: -1 } }
+      { $sort: { year: -1, month: -1 } },
     ]);
 
     res.json(summary);
@@ -1708,7 +2077,8 @@ export const getPayrollSummary = async (req, res) => {
 // Upload employee document
 export const uploadEmployeeDocument = async (req, res) => {
   try {
-    const { employeeId, documentType, title, description, issueDate } = req.body;
+    const { employeeId, documentType, title, description, issueDate } =
+      req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
@@ -1728,7 +2098,7 @@ export const uploadEmployeeDocument = async (req, res) => {
       fileType: req.file.mimetype,
       fileSize: req.file.size,
       issueDate: issueDate || new Date(),
-      uploadedBy: req.user._id
+      uploadedBy: req.user._id,
     });
 
     res.status(201).json(document);
@@ -1762,8 +2132,9 @@ export const getEmployeeDocuments = async (req, res) => {
 // Get teacher salary details
 export const getTeacherSalary = async (req, res) => {
   try {
-    const teacher = await User.findById(req.params.id)
-      .select("employeeRecord.salary");
+    const teacher = await User.findById(req.params.id).select(
+      "employeeRecord.salary",
+    );
 
     if (!teacher || teacher.role !== "TEACHER") {
       return res.status(404).json({ message: "Teacher not found" });
@@ -1804,7 +2175,7 @@ export const updateTeacherSalary = async (req, res) => {
       ta: taVal,
       pf: pfVal,
       tax: taxVal,
-      netSalary: (basicVal + hraVal + daVal + taVal) - (pfVal + taxVal)
+      netSalary: basicVal + hraVal + daVal + taVal - (pfVal + taxVal),
     };
 
     await teacher.save();
@@ -1818,19 +2189,22 @@ export const updateTeacherSalary = async (req, res) => {
 // Get teacher leaves
 export const getTeacherLeaves = async (req, res) => {
   try {
-    const teacher = await User.findById(req.params.id)
-      .select("employeeRecord.leaves");
+    const teacher = await User.findById(req.params.id).select(
+      "employeeRecord.leaves",
+    );
 
     if (!teacher || teacher.role !== "TEACHER") {
       return res.status(404).json({ message: "Teacher not found" });
     }
 
-    res.json(teacher.employeeRecord?.leaves || {
-      total: 0,
-      taken: 0,
-      remaining: 0,
-      records: []
-    });
+    res.json(
+      teacher.employeeRecord?.leaves || {
+        total: 0,
+        taken: 0,
+        remaining: 0,
+        records: [],
+      },
+    );
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1849,7 +2223,7 @@ export const approveLeave = async (req, res) => {
     }
 
     const leaveRecord = teacher.employeeRecord?.leaves?.records?.id(leaveId);
-    
+
     if (!leaveRecord) {
       return res.status(404).json({ message: "Leave record not found" });
     }
@@ -1882,16 +2256,16 @@ export const getFacultyAnalytics = async (req, res) => {
           from: "employeedocuments",
           localField: "_id",
           foreignField: "employeeId",
-          as: "documents"
-        }
+          as: "documents",
+        },
       },
       {
         $lookup: {
           from: "payslips",
           localField: "_id",
           foreignField: "employeeId",
-          as: "payslips"
-        }
+          as: "payslips",
+        },
       },
       {
         $project: {
@@ -1901,8 +2275,8 @@ export const getFacultyAnalytics = async (req, res) => {
           joiningDate: "$employeeRecord.joiningDate",
           documentCount: { $size: "$documents" },
           payslipCount: { $size: "$payslips" },
-          totalSalary: { $sum: "$payslips.netSalary" }
-        }
+          totalSalary: { $sum: "$payslips.netSalary" },
+        },
       },
       {
         $group: {
@@ -1911,18 +2285,20 @@ export const getFacultyAnalytics = async (req, res) => {
           avgDocuments: { $avg: "$documentCount" },
           avgPayslips: { $avg: "$payslipCount" },
           totalPayroll: { $sum: "$totalSalary" },
-          facultyDetails: { $push: "$$ROOT" }
-        }
-      }
+          facultyDetails: { $push: "$$ROOT" },
+        },
+      },
     ]);
 
-    res.json(analytics[0] || {
-      totalFaculty: 0,
-      avgDocuments: 0,
-      avgPayslips: 0,
-      totalPayroll: 0,
-      facultyDetails: []
-    });
+    res.json(
+      analytics[0] || {
+        totalFaculty: 0,
+        avgDocuments: 0,
+        avgPayslips: 0,
+        totalPayroll: 0,
+        facultyDetails: [],
+      },
+    );
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1933,7 +2309,18 @@ export const getFacultyAnalytics = async (req, res) => {
 // Updated createTeacher with salary and leaves structure
 export const createTeacher = async (req, res) => {
   try {
-    const { name, email, password, phone, department, designation, joiningDate } = req.body;
+    const {
+      name,
+      email,
+      password,
+      phone,
+      department,
+      designation,
+      joiningDate,
+      shiftTimings, // Add this
+      salary, // Add this to allow custom salary
+      leaveSettings, // Add this
+    } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -1943,6 +2330,25 @@ export const createTeacher = async (req, res) => {
     const hashedPassword = password;
     const employeeId = generateEmployeeId("TEACHER", Date.now());
     const uniqueId = generateEmployeeUniqueId("TEACHER", name);
+
+    // Use provided shift timings or defaults
+    const defaultShiftTimings = {
+      start: "09:00",
+      end: "17:00",
+      gracePeriod: 15,
+      workingHours: 8,
+    };
+
+    // Use provided salary or defaults
+    const defaultSalary = {
+      basic: 40000,
+      hra: 16000,
+      da: 6000,
+      ta: 2000,
+      pf: 4800,
+      tax: 6400,
+      netSalary: 40000 + 16000 + 6000 + 2000 - 4800 - 6400,
+    };
 
     const teacher = await User.create({
       name,
@@ -1957,22 +2363,33 @@ export const createTeacher = async (req, res) => {
         department: department || "General",
         joiningDate: joiningDate || new Date(),
         contractType: "PERMANENT",
-        salary: {
-          basic: 40000,
-          hra: 16000,
-          da: 6000,
-          ta: 2000,
-          pf: 4800,
-          tax: 6400,
-          netSalary: 40000 + 16000 + 6000 + 2000 - 4800 - 6400
-        },
+
+        // Add shift timings to employeeRecord
+        shiftTimings: shiftTimings || defaultShiftTimings,
+
+        // Salary with custom values if provided
+        salary: salary
+          ? {
+              ...defaultSalary,
+              ...salary,
+              netSalary:
+                (salary.basic || defaultSalary.basic) +
+                (salary.hra || defaultSalary.hra) +
+                (salary.da || defaultSalary.da) +
+                (salary.ta || defaultSalary.ta) -
+                (salary.pf || defaultSalary.pf) -
+                (salary.tax || defaultSalary.tax),
+            }
+          : defaultSalary,
+
+        // Leave settings
         leaves: {
-          total: 30,
+          total: leaveSettings?.totalLeaves || 30,
           taken: 0,
-          remaining: 30,
-          records: []
-        }
-      }
+          remaining: leaveSettings?.totalLeaves || 30,
+          records: [],
+        },
+      },
     });
 
     res.status(201).json({
@@ -1980,14 +2397,14 @@ export const createTeacher = async (req, res) => {
       name: teacher.name,
       email: teacher.email,
       employeeId: teacher.employeeRecord.employeeId,
-      uniqueId: teacher.uniqueId
+      uniqueId: teacher.uniqueId,
+      shiftTimings: teacher.employeeRecord.shiftTimings, // Return shift timings in response
     });
   } catch (error) {
     console.error("Error in createTeacher:", error);
     res.status(500).json({ message: error.message });
   }
 };
-
 
 // Updated deleteTeacher with document cleanup
 export const deleteTeacher = async (req, res) => {
@@ -2001,7 +2418,7 @@ export const deleteTeacher = async (req, res) => {
     // Remove from classrooms
     await Classroom.updateMany(
       { teacher: teacher._id },
-      { $set: { teacher: null, status: "INACTIVE" } }
+      { $set: { teacher: null, status: "INACTIVE" } },
     );
 
     // Delete related records
@@ -2019,8 +2436,7 @@ export const deleteTeacher = async (req, res) => {
 // Updated getTeacherDetails with documents and payslips
 export const getTeacherDetails = async (req, res) => {
   try {
-    const teacher = await User.findById(req.params.id)
-      .select("-password");
+    const teacher = await User.findById(req.params.id).select("-password");
 
     if (!teacher || teacher.role !== "TEACHER") {
       return res.status(404).json({ message: "Teacher not found" });
@@ -2038,66 +2454,78 @@ export const getTeacherDetails = async (req, res) => {
     const payslips = await Payslip.find({ employeeId: teacher._id });
 
     // Get attendance records for the teacher
-    const attendanceRecords = await TeacherAttendanceModel.find({ 
-      employeeId: teacher._id 
+    const attendanceRecords = await TeacherAttendanceModel.find({
+      employeeId: teacher._id,
     })
-    .sort({ date: -1 })
-    .limit(30); // Last 30 days
+      .sort({ date: -1 })
+      .limit(30); // Last 30 days
 
     // Calculate attendance statistics
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const startOfYear = new Date(today.getFullYear(), 0, 1);
 
     const attendanceStats = {
       totalDays: attendanceRecords.length,
-      present: attendanceRecords.filter(r => r.status === "PRESENT").length,
-      absent: attendanceRecords.filter(r => r.status === "ABSENT").length,
-      late: attendanceRecords.filter(r => r.status === "LATE").length,
-      halfDay: attendanceRecords.filter(r => r.status === "HALF_DAY").length,
-      onLeave: attendanceRecords.filter(r => r.status === "ON_LEAVE").length,
-      holiday: attendanceRecords.filter(r => r.status === "HOLIDAY").length,
-      
+      present: attendanceRecords.filter((r) => r.status === "PRESENT").length,
+      absent: attendanceRecords.filter((r) => r.status === "ABSENT").length,
+      late: attendanceRecords.filter((r) => r.status === "LATE").length,
+      halfDay: attendanceRecords.filter((r) => r.status === "HALF_DAY").length,
+      onLeave: attendanceRecords.filter((r) => r.status === "ON_LEAVE").length,
+      holiday: attendanceRecords.filter((r) => r.status === "HOLIDAY").length,
+
       // Monthly stats
       monthly: {
-        present: attendanceRecords.filter(r => 
-          r.status === "PRESENT" && new Date(r.date) >= startOfMonth
+        present: attendanceRecords.filter(
+          (r) => r.status === "PRESENT" && new Date(r.date) >= startOfMonth,
         ).length,
-        absent: attendanceRecords.filter(r => 
-          r.status === "ABSENT" && new Date(r.date) >= startOfMonth
+        absent: attendanceRecords.filter(
+          (r) => r.status === "ABSENT" && new Date(r.date) >= startOfMonth,
         ).length,
-        late: attendanceRecords.filter(r => 
-          r.status === "LATE" && new Date(r.date) >= startOfMonth
+        late: attendanceRecords.filter(
+          (r) => r.status === "LATE" && new Date(r.date) >= startOfMonth,
         ).length,
       },
-      
+
       // Yearly stats
       yearly: {
-        present: attendanceRecords.filter(r => 
-          r.status === "PRESENT" && new Date(r.date) >= startOfYear
+        present: attendanceRecords.filter(
+          (r) => r.status === "PRESENT" && new Date(r.date) >= startOfYear,
         ).length,
-        absent: attendanceRecords.filter(r => 
-          r.status === "ABSENT" && new Date(r.date) >= startOfYear
+        absent: attendanceRecords.filter(
+          (r) => r.status === "ABSENT" && new Date(r.date) >= startOfYear,
         ).length,
       },
-      
+
       // Today's status
-      today: attendanceRecords.find(r => 
-        new Date(r.date).toDateString() === today.toDateString()
-      ) || null,
-      
+      today:
+        attendanceRecords.find(
+          (r) => new Date(r.date).toDateString() === today.toDateString(),
+        ) || null,
+
       // Average work hours
-      avgWorkHours: attendanceRecords.length > 0
-        ? (attendanceRecords.reduce((acc, r) => acc + (r.totalWorkHours || 0), 0) / attendanceRecords.length).toFixed(1)
-        : "0",
-      
-      attendanceRate: attendanceRecords.length > 0
-        ? ((attendanceRecords.filter(r => 
-            r.status === "PRESENT" || r.status === "LATE"
-          ).length / attendanceRecords.length) * 100).toFixed(1)
-        : "0",
+      avgWorkHours:
+        attendanceRecords.length > 0
+          ? (
+              attendanceRecords.reduce(
+                (acc, r) => acc + (r.totalWorkHours || 0),
+                0,
+              ) / attendanceRecords.length
+            ).toFixed(1)
+          : "0",
+
+      attendanceRate:
+        attendanceRecords.length > 0
+          ? (
+              (attendanceRecords.filter(
+                (r) => r.status === "PRESENT" || r.status === "LATE",
+              ).length /
+                attendanceRecords.length) *
+              100
+            ).toFixed(1)
+          : "0",
     };
 
     // Get current month's attendance trend
@@ -2106,14 +2534,14 @@ export const getTeacherDetails = async (req, res) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
-      
-      const record = attendanceRecords.find(r => 
-        new Date(r.date).toDateString() === date.toDateString()
+
+      const record = attendanceRecords.find(
+        (r) => new Date(r.date).toDateString() === date.toDateString(),
       );
-      
+
       monthDays.push({
-        date: date.toISOString().split('T')[0],
-        dayOfWeek: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: date.toISOString().split("T")[0],
+        dayOfWeek: date.toLocaleDateString("en-US", { weekday: "short" }),
         status: record?.status || "NO_RECORD",
         workHours: record?.totalWorkHours || 0,
         checkInTime: record?.actualCheckIn?.startTime,
@@ -2125,7 +2553,10 @@ export const getTeacherDetails = async (req, res) => {
       teacher,
       stats: {
         totalClassrooms: classrooms.length,
-        totalStudents: classrooms.reduce((acc, c) => acc + (c.students?.length || 0), 0),
+        totalStudents: classrooms.reduce(
+          (acc, c) => acc + (c.students?.length || 0),
+          0,
+        ),
         totalAssignments: assignments.length,
         totalDocuments: documents.length,
         totalPayslips: payslips.length,
@@ -2149,11 +2580,11 @@ export const getTeacherDetails = async (req, res) => {
 // Updated createStudent with uniqueId
 export const createStudent = async (req, res) => {
   try {
-    const { 
-      name, 
-      email, 
-      password, 
-      phone, 
+    const {
+      name,
+      email,
+      password,
+      phone,
       department,
       batch,
       currentSemester,
@@ -2169,7 +2600,7 @@ export const createStudent = async (req, res) => {
       skills,
       enrolledCourses,
       jobPreferences,
-      socialLinks
+      socialLinks,
     } = req.body;
 
     const existingUser = await User.findOne({ email });
@@ -2190,7 +2621,8 @@ export const createStudent = async (req, res) => {
       uniqueId,
       enrollmentNumber,
       department,
-      batch: batch || `${new Date().getFullYear()}-${new Date().getFullYear() + 3}`,
+      batch:
+        batch || `${new Date().getFullYear()}-${new Date().getFullYear() + 3}`,
       currentSemester: currentSemester || "1",
       cgpa: cgpa || 0,
       backlogs: backlogs || 0,
@@ -2209,18 +2641,18 @@ export const createStudent = async (req, res) => {
         expectedSalary: "",
         jobType: [],
         immediateJoiner: false,
-        noticePeriod: "30 days"
+        noticePeriod: "30 days",
       },
       socialLinks: socialLinks || {
         linkedin: "",
         github: "",
         portfolio: "",
-        twitter: ""
+        twitter: "",
       },
       isProfileComplete: true,
       isPlacementEligible: false,
       placementStatus: "Not Applied",
-      isActive: true
+      isActive: true,
     });
 
     res.status(201).json({
@@ -2231,14 +2663,14 @@ export const createStudent = async (req, res) => {
         name: student.name,
         email: student.email,
         uniqueId: student.uniqueId,
-        enrollmentNumber: student.enrollmentNumber
-      }
+        enrollmentNumber: student.enrollmentNumber,
+      },
     });
   } catch (error) {
     console.error("Error in createStudent:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: error.message 
+      message: error.message,
     });
   }
 };
@@ -2255,7 +2687,7 @@ export const deleteStudent = async (req, res) => {
     // Remove from classrooms
     await Classroom.updateMany(
       { students: student._id },
-      { $pull: { students: student._id } }
+      { $pull: { students: student._id } },
     );
 
     // Delete submissions
@@ -2281,29 +2713,39 @@ export const getSalaryStructure = async (req, res) => {
   try {
     const employees = await User.find({
       role: { $in: ["TEACHER", "FACULTY_ADMIN"] },
-      employeeRecord: { $exists: true }
+      employeeRecord: { $exists: true },
     }).select(
-      "name email role employeeRecord.employeeId employeeRecord.department employeeRecord.designation employeeRecord.salary employeeRecord.joiningDate"
+      "name email role employeeRecord.employeeId employeeRecord.department employeeRecord.designation employeeRecord.salary employeeRecord.joiningDate",
     );
 
     // Calculate summary statistics
     const summary = {
       totalEmployees: employees.length,
-      totalMonthlyPayroll: employees.reduce((sum, emp) => sum + (emp.employeeRecord?.salary?.netSalary || 0), 0),
-      averageSalary: employees.length > 0 
-        ? (employees.reduce((sum, emp) => sum + (emp.employeeRecord?.salary?.netSalary || 0), 0) / employees.length).toFixed(2)
-        : 0,
+      totalMonthlyPayroll: employees.reduce(
+        (sum, emp) => sum + (emp.employeeRecord?.salary?.netSalary || 0),
+        0,
+      ),
+      averageSalary:
+        employees.length > 0
+          ? (
+              employees.reduce(
+                (sum, emp) =>
+                  sum + (emp.employeeRecord?.salary?.netSalary || 0),
+                0,
+              ) / employees.length
+            ).toFixed(2)
+          : 0,
       byDepartment: {},
       salaryRanges: {
         below30000: 0,
         between30000to50000: 0,
         between50000to70000: 0,
-        above70000: 0
-      }
+        above70000: 0,
+      },
     };
 
     // Categorize by salary range and department
-    employees.forEach(emp => {
+    employees.forEach((emp) => {
       const salary = emp.employeeRecord?.salary?.netSalary || 0;
       const dept = emp.employeeRecord?.department || "Other";
 
@@ -2318,7 +2760,7 @@ export const getSalaryStructure = async (req, res) => {
         summary.byDepartment[dept] = {
           count: 0,
           totalSalary: 0,
-          average: 0
+          average: 0,
         };
       }
       summary.byDepartment[dept].count++;
@@ -2326,14 +2768,16 @@ export const getSalaryStructure = async (req, res) => {
     });
 
     // Calculate department averages
-    Object.keys(summary.byDepartment).forEach(dept => {
-      summary.byDepartment[dept].average = 
-        (summary.byDepartment[dept].totalSalary / summary.byDepartment[dept].count).toFixed(2);
+    Object.keys(summary.byDepartment).forEach((dept) => {
+      summary.byDepartment[dept].average = (
+        summary.byDepartment[dept].totalSalary /
+        summary.byDepartment[dept].count
+      ).toFixed(2);
     });
 
     res.json({
       employees,
-      summary
+      summary,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

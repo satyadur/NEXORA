@@ -28,7 +28,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-primary/5 to-secondary/5 py-12 px-4">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-8xl mx-auto">
         <RegisterForm />
       </div>
     </div>

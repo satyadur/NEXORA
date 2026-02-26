@@ -145,7 +145,7 @@ const teacherAttendanceSchema = new mongoose.Schema({
 metadata: {
   source: {
     type: String,
-    enum: ["qr_scanner", "mobile_app", "web_app", "manual_entry", "system"],
+    enum: ["qr_scanner", "mobile_app", "web_app", "manual_entry", "system","bulk_entry"],
     default: "web_app",
   },
   verificationMethod: {

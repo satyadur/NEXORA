@@ -29,6 +29,7 @@ function checkProfileCompleteness(user) {
 }
 
 /* ================= REGISTER ================= */
+/* ================= REGISTER ================= */
 export const register = async (req, res) => {
   try {
     const {
@@ -37,13 +38,8 @@ export const register = async (req, res) => {
       password,
       role,
       phone,
-      phoneCode,
       dateOfBirth,
       gender,
-      department,
-      designation,
-      joiningDate,
-      employeeId,
       enrollmentNumber,
       batch,
       currentSemester,
@@ -51,9 +47,11 @@ export const register = async (req, res) => {
       education,
       experience,
       skills,
+      enrolledCourses, // NEW: Add this
       jobPreferences,
       socialLinks,
       address,
+      selectedPackage, // Add package selection
     } = req.body;
 
     // Check existing email
@@ -63,7 +61,11 @@ export const register = async (req, res) => {
     }
 
     const safeRole = role === "TEACHER" ? "TEACHER" : "STUDENT";
-    const fullPhone = phoneCode && phone ? `${phoneCode} ${phone}` : phone;
+    
+    // For now, only students can register through this flow
+    if (safeRole !== "STUDENT") {
+      return res.status(400).json({ message: "Only student registration is allowed" });
+    }
 
     let avatarUrl = "";
     let resumeUrl = "";
@@ -112,6 +114,7 @@ export const register = async (req, res) => {
     let parsedAddress = {};
     let parsedEducation = [];
     let parsedExperience = [];
+    let parsedEnrolledCourses = []; // NEW
 
     try {
       if (skills) parsedSkills = JSON.parse(skills);
@@ -120,6 +123,7 @@ export const register = async (req, res) => {
       if (address) parsedAddress = JSON.parse(address);
       if (education) parsedEducation = JSON.parse(education);
       if (experience) parsedExperience = JSON.parse(experience);
+      if (enrolledCourses) parsedEnrolledCourses = JSON.parse(enrolledCourses); // NEW
     } catch (e) {
       console.log("⚠️ JSON parse error:", e.message);
     }
@@ -132,7 +136,7 @@ export const register = async (req, res) => {
       role: safeRole,
       avatar: avatarUrl,
       resume: resumeUrl,
-      phone: fullPhone,
+      phone,
       dateOfBirth,
       gender,
       address: parsedAddress,
@@ -141,21 +145,17 @@ export const register = async (req, res) => {
       skills: parsedSkills,
       education: parsedEducation,
       experience: parsedExperience,
+      enrolledCourses: parsedEnrolledCourses, // NEW: Add enrolled courses
+      
+      // Student specific fields
+      enrollmentNumber,
+      batch,
+      currentSemester: currentSemester ? parseInt(currentSemester) : undefined,
+      cgpa: cgpa ? parseFloat(cgpa) : undefined,
+      
+      // Package selection (you might want to store this in a separate collection)
+      selectedPackage,
     };
-
-    if (safeRole === "TEACHER") {
-      userData.department = department;
-      userData.designation = designation;
-      userData.joiningDate = joiningDate;
-      userData.employeeId = employeeId;
-    }
-
-    if (safeRole === "STUDENT") {
-      userData.enrollmentNumber = enrollmentNumber;
-      userData.batch = batch;
-      userData.currentSemester = currentSemester ? parseInt(currentSemester) : undefined;
-      userData.cgpa = cgpa ? parseFloat(cgpa) : undefined;
-    }
 
     console.log("📦 Creating user with data:", userData);
 
@@ -175,6 +175,7 @@ export const register = async (req, res) => {
       avatar: user.avatar,
       resume: user.resume,
       isProfileComplete,
+      enrolledCourses: user.enrolledCourses, // Return enrolled courses
     });
 
   } catch (error) {

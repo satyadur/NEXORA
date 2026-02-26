@@ -78,6 +78,14 @@ export const checkIn = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Get employee's shift timings
+    const shiftTimings = employee.employeeRecord?.shiftTimings || {
+      start: "09:00",
+      end: "17:00",
+      gracePeriod: 15,
+      workingHours: 8
+    };
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -139,19 +147,32 @@ export const checkIn = async (req, res) => {
       checkInMethod: qrCode ? "qr_scan" : method,
     };
 
-    // Determine status based on time
-    const currentHour = new Date().getHours();
-    const scheduledStartHour = 9; // 9 AM
+    // Determine status based on employee's shift timings
+    const checkInTime = new Date();
+    const [schedHour, schedMin] = shiftTimings.start.split(':').map(Number);
+    
+    // Create scheduled start time for today
+    const scheduledStart = new Date();
+    scheduledStart.setHours(schedHour, schedMin, 0, 0);
 
     let status = "PRESENT";
     let lateMinutes = 0;
     
-    if (currentHour > scheduledStartHour) {
-      lateMinutes = (currentHour - scheduledStartHour) * 60;
-      status = "LATE";
+    // Calculate if employee is late
+    if (checkInTime > scheduledStart) {
+      const diffMinutes = Math.round((checkInTime.getTime() - scheduledStart.getTime()) / (1000 * 60));
+      
+      // Check if beyond grace period
+      if (diffMinutes > shiftTimings.gracePeriod) {
+        lateMinutes = diffMinutes;
+        status = "LATE";
+      }
     }
 
-    // Create attendance data object
+    // Check if employee is checking in on a holiday/weekend? (Optional)
+    // You could add holiday checking logic here
+
+    // Create attendance data object with shift timings
     const attendanceData = {
       employeeId: employee._id,
       employeeName: employee.name,
@@ -159,7 +180,9 @@ export const checkIn = async (req, res) => {
       employeeRole: employee.role,
       date: today,
       status,
-      lateMinutes, // Add lateMinutes to the attendance data
+      lateMinutes,
+      scheduledStartTime: shiftTimings.start, // Store employee's shift start time
+      scheduledEndTime: shiftTimings.end,     // Store employee's shift end time
       actualCheckIn: session,
       sessions: [session],
       markedBy: employee._id,
@@ -209,10 +232,27 @@ export const checkIn = async (req, res) => {
       await qrData.save();
     }
 
+    // Prepare response with shift information
     res.status(201).json({
+      success: true,
       message: "Check-in successful",
-      attendance,
+      attendance: {
+        ...attendance.toObject(),
+        shiftInfo: {
+          scheduledStart: shiftTimings.start,
+          scheduledEnd: shiftTimings.end,
+          gracePeriod: shiftTimings.gracePeriod,
+          workingHours: shiftTimings.workingHours,
+          lateMinutes,
+          status,
+        },
+      },
       geofenceStatus: geofenceCheck,
+      shiftStatus: {
+        onTime: lateMinutes === 0,
+        lateBy: lateMinutes > 0 ? lateMinutes : 0,
+        gracePeriodUsed: lateMinutes > 0 && lateMinutes <= shiftTimings.gracePeriod,
+      },
     });
   } catch (error) {
     console.error("Check-in error:", error);
@@ -230,8 +270,6 @@ export const checkOut = async (req, res) => {
       altitude,
       address,
       deviceInfo,
-      wifiInfo,
-      batteryLevel,
     } = req.body;
 
     const employee = await User.findById(req.user.id);
@@ -240,24 +278,35 @@ export const checkOut = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Get employee's shift timings
+    const shiftTimings = employee.employeeRecord?.shiftTimings || {
+      start: "09:00",
+      end: "17:00",
+      gracePeriod: 15,
+      workingHours: 8
+    };
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Find today's attendance
     const attendance = await TeacherAttendance.findOne({
       employeeId: employee._id,
       date: today,
     });
 
     if (!attendance) {
-      return res.status(404).json({ message: "No check-in record found for today" });
+      return res.status(404).json({ message: "No check-in found for today" });
     }
 
     if (attendance.actualCheckOut) {
       return res.status(400).json({ message: "Already checked out today" });
     }
 
+    // Create check-out session
+    const checkOutTime = new Date();
     const checkOutSession = {
-      startTime: new Date(),
+      startTime: checkOutTime,
       location: {
         type: "Point",
         coordinates: [longitude, latitude],
@@ -266,30 +315,47 @@ export const checkOut = async (req, res) => {
       altitude,
       address: address || {},
       deviceInfo: deviceInfo || {},
-      wifiInfo: wifiInfo || {},
-      batteryLevel,
     };
 
     attendance.actualCheckOut = checkOutSession;
     attendance.sessions.push(checkOutSession);
-    
+
     // Calculate total work hours
-    const checkInTime = new Date(attendance.actualCheckIn.startTime).getTime();
-    const checkOutTime = new Date().getTime();
-    const diffMs = checkOutTime - checkInTime;
-    attendance.totalWorkHours = diffMs / (1000 * 60 * 60);
+    if (attendance.actualCheckIn) {
+      const checkInTime = attendance.actualCheckIn.startTime;
+      const diffMs = checkOutTime - checkInTime;
+      attendance.totalWorkHours = diffMs / (1000 * 60 * 60);
+    }
+
+    // Calculate early departure based on shift end time
+    const [schedHour, schedMin] = shiftTimings.end.split(':').map(Number);
+    const scheduledEnd = new Date();
+    scheduledEnd.setHours(schedHour, schedMin, 0, 0);
+
+    if (checkOutTime < scheduledEnd) {
+      const earlyMinutes = Math.round((scheduledEnd.getTime() - checkOutTime.getTime()) / (1000 * 60));
+      attendance.earlyDepartureMinutes = earlyMinutes;
+      
+      // Optionally update status if left early
+      if (earlyMinutes > shiftTimings.gracePeriod && attendance.status === "PRESENT") {
+        // Could set to HALF_DAY or keep as is based on your business logic
+        // attendance.status = "HALF_DAY";
+      }
+    }
 
     await attendance.save();
 
-    // Format work hours for response
-    const hours = Math.floor(attendance.totalWorkHours);
-    const minutes = Math.round((attendance.totalWorkHours - hours) * 60);
-    const formattedWorkHours = `${hours}h ${minutes}m`;
-
     res.json({
+      success: true,
       message: "Check-out successful",
-      attendance,
-      workHours: formattedWorkHours,
+      attendance: {
+        ...attendance.toObject(),
+        shiftInfo: {
+          scheduledEnd: shiftTimings.end,
+          earlyDeparture: attendance.earlyDepartureMinutes,
+          totalWorkHours: attendance.formattedWorkHours,
+        },
+      },
     });
   } catch (error) {
     console.error("Check-out error:", error);

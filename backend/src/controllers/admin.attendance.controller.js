@@ -3,13 +3,13 @@ import TeacherAttendance from "../models/TeacherAttendance.model.js";
 import User from "../models/User.model.js";
 
 // Get all teacher/faculty attendance with filters
+// Get teacher attendance with filters
 export const getTeacherAttendance = async (req, res) => {
   try {
     const { startDate, endDate, employeeId, status } = req.query;
-
+    
     const query = {};
-
-    // Filter by date range
+    
     if (startDate || endDate) {
       query.date = {};
       if (startDate) query.date.$gte = new Date(startDate);
@@ -19,38 +19,42 @@ export const getTeacherAttendance = async (req, res) => {
         query.date.$lte = end;
       }
     }
-
-    // Filter by employee
+    
     if (employeeId) {
       query.employeeId = employeeId;
     }
-
-    // Filter by status
-    if (status && status !== 'all') {
+    
+    if (status) {
       query.status = status;
     }
-
+    
     const attendance = await TeacherAttendance.find(query)
-      .populate("employeeId", "name email role")
-      .sort({ date: -1, employeeName: 1 });
-
+      .populate('employeeId', 'name email employeeRecord.shiftTimings')
+      .sort({ date: -1 });
+    
     // Format the response
-    const formattedAttendance = attendance.map(record => {
-      const recordObj = record.toObject();
-      
-      // Add formatted work hours if not present
-      if (!recordObj.formattedWorkHours && record.totalWorkHours) {
-        const hours = Math.floor(record.totalWorkHours);
-        const minutes = Math.round((record.totalWorkHours - hours) * 60);
-        recordObj.formattedWorkHours = `${hours}h ${minutes}m`;
-      }
-
-      return recordObj;
-    });
-
+    const formattedAttendance = attendance.map(record => ({
+      _id: record._id,
+      employeeId: record.employeeId,
+      employeeName: record.employeeName,
+      employeeEmail: record.employeeEmail,
+      employeeRole: record.employeeRole,
+      date: record.date,
+      status: record.status,
+      scheduledStartTime: record.scheduledStartTime,
+      scheduledEndTime: record.scheduledEndTime,
+      actualCheckIn: record.actualCheckIn,
+      actualCheckOut: record.actualCheckOut,
+      totalWorkHours: record.totalWorkHours,
+      formattedWorkHours: record.formattedWorkHours,
+      lateMinutes: record.lateMinutes,
+      earlyDepartureMinutes: record.earlyDepartureMinutes,
+      notes: record.notes,
+      shiftTimings: record.employeeId?.employeeRecord?.shiftTimings // Include shift timings
+    }));
+    
     res.json(formattedAttendance);
   } catch (error) {
-    console.error("Error fetching attendance:", error);
     res.status(500).json({ message: error.message });
   }
 };
