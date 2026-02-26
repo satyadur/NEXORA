@@ -25,7 +25,7 @@ router.post("/register", async (req, res) => {
       name: "Super Admin",
       email: "superadmin@nexora.com",
       password: hashedPassword,
-      role: "SUPER_ADMIN",
+      role: "ADMIN",
       phone: "9999999999",
       uniqueId: "SUP" + Date.now()
     });
