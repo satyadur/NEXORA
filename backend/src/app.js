@@ -12,6 +12,7 @@ import publicRoutes from "./routes/public.routes.js";
 import teacherRoutes from "./routes/teacher.routes.js";
 import studentRoutes from "./routes/student.routes.js";
 import courseRoutes from "./routes/course.routes.js";
+import superAdminRoutes from "./routes/superadmin.routes.js";
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use("/api/public", publicRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/courses", courseRoutes);
+app.use("/api/superadmin", superAdminRoutes);
 
 app.get("/", (req, res) => {
   res.status(200).json({
