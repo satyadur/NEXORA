@@ -181,26 +181,28 @@ export default function ClassroomDetailsPage() {
   const { classroom, assignments } = data;
 
   const completedCount = assignments.filter(
-    (a) => a.submissionStatus !== "NOT_SUBMITTED"
+    (a) => a.submissionStatus !== "NOT_SUBMITTED",
   ).length;
 
   const evaluatedCount = assignments.filter(
-    (a) => a.submissionStatus === "EVALUATED"
+    (a) => a.submissionStatus === "EVALUATED",
   ).length;
 
-  const progress = assignments.length > 0
-    ? Math.round((completedCount / assignments.length) * 100)
-    : 0;
+  const progress =
+    assignments.length > 0
+      ? Math.round((completedCount / assignments.length) * 100)
+      : 0;
 
-  const averageScore = assignments
-    .filter(a => a.score !== null)
-    .reduce((acc, a) => acc + (a.score || 0), 0) / (evaluatedCount || 1);
+  const averageScore =
+    assignments
+      .filter((a) => a.score !== null)
+      .reduce((acc, a) => acc + (a.score || 0), 0) / (evaluatedCount || 1);
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
       .toUpperCase()
       .slice(0, 2);
   };
@@ -244,13 +246,14 @@ export default function ClassroomDetailsPage() {
             disabled={isFetching}
             className="gap-2"
           >
-            <RefreshCcw size={14} className={isFetching ? "animate-spin" : ""} />
+            <RefreshCcw
+              size={14}
+              className={isFetching ? "animate-spin" : ""}
+            />
             {isFetching ? "Refreshing..." : "Refresh"}
           </Button>
           <Button asChild size="sm">
-            <Link href="/student/classrooms">
-              Back to Classrooms
-            </Link>
+            <Link href="/student/classrooms">Back to Classrooms</Link>
           </Button>
         </div>
       </div>
@@ -266,7 +269,9 @@ export default function ClassroomDetailsPage() {
               </div>
               <div>
                 <p className="text-sm font-medium">Classroom Invite Code</p>
-                <p className="text-2xl font-mono font-bold">{classroom.inviteCode}</p>
+                <p className="text-2xl font-mono font-bold">
+                  {classroom.inviteCode}
+                </p>
               </div>
             </div>
             <Button
@@ -311,7 +316,9 @@ export default function ClassroomDetailsPage() {
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-1">
-                <p className="font-medium leading-none">{classroom.teacher.name}</p>
+                <p className="font-medium leading-none">
+                  {classroom.teacher.name}
+                </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Mail size={12} />
                   {classroom.teacher.email}
@@ -344,7 +351,10 @@ export default function ClassroomDetailsPage() {
               Progress
             </CardTitle>
             <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-              <TrendingUp size={18} className="text-green-600 dark:text-green-400" />
+              <TrendingUp
+                size={18}
+                className="text-green-600 dark:text-green-400"
+              />
             </div>
           </CardHeader>
           <CardContent>
@@ -364,15 +374,19 @@ export default function ClassroomDetailsPage() {
               Avg. Score
             </CardTitle>
             <div className="h-8 w-8 rounded-full bg-yellow-100 dark:bg-yellow-900/20 flex items-center justify-center">
-              <Trophy size={18} className="text-yellow-600 dark:text-yellow-400" />
+              <Trophy
+                size={18}
+                className="text-yellow-600 dark:text-yellow-400"
+              />
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              {evaluatedCount > 0 ? averageScore.toFixed(1) : '-'}
+              {evaluatedCount > 0 ? averageScore.toFixed(1) : "-"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Across {evaluatedCount} evaluated {evaluatedCount === 1 ? 'assignment' : 'assignments'}
+              Across {evaluatedCount} evaluated{" "}
+              {evaluatedCount === 1 ? "assignment" : "assignments"}
             </p>
           </CardContent>
         </Card>
@@ -380,7 +394,12 @@ export default function ClassroomDetailsPage() {
 
       {/* ================= TABS SECTION ================= */}
 
-      <Tabs defaultValue="assignments" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs
+        defaultValue="assignments"
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="assignments" className="gap-2">
             <FileText size={16} />
@@ -402,12 +421,20 @@ export default function ClassroomDetailsPage() {
             <div>
               <h2 className="text-xl font-semibold">Class Assignments</h2>
               <p className="text-sm text-muted-foreground">
-                {assignments.length} total assignments • {completedCount} completed
+                {assignments.length} total assignments • {completedCount}{" "}
+                completed
               </p>
             </div>
             <Badge variant="outline" className="gap-1">
               <Clock size={14} />
-              {assignments.filter(a => !isDeadlinePassed(a.deadline) && a.submissionStatus === "NOT_SUBMITTED").length} pending
+              {
+                assignments.filter(
+                  (a) =>
+                    !isDeadlinePassed(a.deadline) &&
+                    a.submissionStatus === "NOT_SUBMITTED",
+                ).length
+              }{" "}
+              pending
             </Badge>
           </div>
 
@@ -417,21 +444,25 @@ export default function ClassroomDetailsPage() {
                 <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-4">
                   <BookOpen className="h-10 w-10 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">No Assignments Yet</h3>
+                <h3 className="text-lg font-semibold mb-2">
+                  No Assignments Yet
+                </h3>
                 <p className="text-sm text-muted-foreground text-center max-w-sm">
-                  The teacher hasn&apos;t published any assignments for this classroom yet.
-                  Check back later for updates.
+                  The teacher hasn&apos;t published any assignments for this
+                  classroom yet. Check back later for updates.
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
               {assignments.map((assignment) => {
-                const StatusIcon = statusConfig[assignment.submissionStatus].icon;
-                const isLate = isDeadlinePassed(assignment.deadline) && 
-                              assignment.submissionStatus === "NOT_SUBMITTED";
+                const StatusIcon =
+                  statusConfig[assignment.submissionStatus].icon;
+                const isLate =
+                  isDeadlinePassed(assignment.deadline) &&
+                  assignment.submissionStatus === "NOT_SUBMITTED";
                 const daysRemaining = getDaysRemaining(assignment.deadline);
-                
+
                 return (
                   <Card
                     key={assignment._id}
@@ -442,8 +473,10 @@ export default function ClassroomDetailsPage() {
                         <CardTitle className="line-clamp-1 text-lg">
                           {assignment.title}
                         </CardTitle>
-                        <Badge 
-                          variant={statusConfig[assignment.submissionStatus].variant}
+                        <Badge
+                          variant={
+                            statusConfig[assignment.submissionStatus].variant
+                          }
                           className={`gap-1 ${statusConfig[assignment.submissionStatus].color}`}
                         >
                           <StatusIcon size={12} />
@@ -460,17 +493,25 @@ export default function ClassroomDetailsPage() {
                       <div className="flex items-center justify-between text-sm">
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Calendar size={16} />
-                          <span>Due {new Date(assignment.deadline).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}</span>
+                          <span>
+                            Due{" "}
+                            {new Date(assignment.deadline).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              },
+                            )}
+                          </span>
                         </div>
-                        {!isLate && assignment.submissionStatus === "NOT_SUBMITTED" && (
-                          <Badge variant="outline" className="text-xs">
-                            {daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} left
-                          </Badge>
-                        )}
+                        {!isLate &&
+                          assignment.submissionStatus === "NOT_SUBMITTED" && (
+                            <Badge variant="outline" className="text-xs">
+                              {daysRemaining}{" "}
+                              {daysRemaining === 1 ? "day" : "days"} left
+                            </Badge>
+                          )}
                         {isLate && (
                           <Badge variant="destructive" className="text-xs">
                             <AlertCircle className="h-3 w-3 mr-1" />
@@ -484,7 +525,9 @@ export default function ClassroomDetailsPage() {
                         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                           <div className="flex items-center gap-2">
                             <Trophy size={16} className="text-yellow-600" />
-                            <span className="text-sm font-medium">Your Score</span>
+                            <span className="text-sm font-medium">
+                              Your Score
+                            </span>
                           </div>
                           <span className="text-lg font-bold text-primary">
                             {assignment.score}/{assignment.totalMarks}
@@ -493,15 +536,21 @@ export default function ClassroomDetailsPage() {
                       )}
 
                       {/* Action Button */}
-                      <Button 
-                        asChild 
+                      <Button
+                        asChild
                         className="w-full gap-2 group-hover:translate-x-1 transition-transform"
-                        variant={assignment.submissionStatus === "NOT_SUBMITTED" ? "default" : "outline"}
+                        variant={
+                          assignment.submissionStatus === "NOT_SUBMITTED"
+                            ? "default"
+                            : "outline"
+                        }
                       >
-                        <Link href={`/student/assignments/${assignment._id}/start`}>
+                        <Link
+                          href={`/student/${assignment.submissionStatus === "NOT_SUBMITTED" ? "assignments" : "submissions"}/${assignment.submissionStatus !== "NOT_SUBMITTED" ? "" : assignment._id}${assignment.submissionStatus === "NOT_SUBMITTED" ? "/start" : ""}`}
+                        >
                           <BookOpen className="h-4 w-4" />
-                          {assignment.submissionStatus === "NOT_SUBMITTED" 
-                            ? "Start Assignment" 
+                          {assignment.submissionStatus === "NOT_SUBMITTED"
+                            ? "Start Assignment"
                             : "View Submission"}
                           <ChevronRight className="h-4 w-4 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
                         </Link>
@@ -526,7 +575,9 @@ export default function ClassroomDetailsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Teacher Information</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Teacher Information
+                    </h3>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                       <Avatar className="h-12 w-12">
                         <AvatarFallback className="bg-primary/10 text-primary">
@@ -535,25 +586,35 @@ export default function ClassroomDetailsPage() {
                       </Avatar>
                       <div>
                         <p className="font-medium">{classroom.teacher.name}</p>
-                        <p className="text-sm text-muted-foreground">{classroom.teacher.email}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {classroom.teacher.email}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Class Details</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Class Details
+                    </h3>
                     <div className="space-y-2">
                       <div className="flex justify-between p-2 rounded-lg bg-muted/30">
                         <span className="text-sm">Invite Code</span>
-                        <span className="text-sm font-mono font-medium">{classroom.inviteCode}</span>
+                        <span className="text-sm font-mono font-medium">
+                          {classroom.inviteCode}
+                        </span>
                       </div>
                       <div className="flex justify-between p-2 rounded-lg bg-muted/30">
                         <span className="text-sm">Total Students</span>
-                        <span className="text-sm font-medium">{classroom.studentsCount}</span>
+                        <span className="text-sm font-medium">
+                          {classroom.studentsCount}
+                        </span>
                       </div>
                       <div className="flex justify-between p-2 rounded-lg bg-muted/30">
                         <span className="text-sm">Total Assignments</span>
-                        <span className="text-sm font-medium">{assignments.length}</span>
+                        <span className="text-sm font-medium">
+                          {assignments.length}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -561,24 +622,37 @@ export default function ClassroomDetailsPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Description
+                    </h3>
                     <div className="p-4 rounded-lg bg-muted/50">
                       <p className="text-sm">
-                        {classroom.description || "No description provided for this classroom."}
+                        {classroom.description ||
+                          "No description provided for this classroom."}
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Quick Stats</h3>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">
+                      Quick Stats
+                    </h3>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="p-3 rounded-lg bg-muted/50 text-center">
-                        <p className="text-2xl font-bold text-primary">{completedCount}</p>
-                        <p className="text-xs text-muted-foreground">Completed</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {completedCount}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Completed
+                        </p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted/50 text-center">
-                        <p className="text-2xl font-bold text-yellow-600">{evaluatedCount}</p>
-                        <p className="text-xs text-muted-foreground">Evaluated</p>
+                        <p className="text-2xl font-bold text-yellow-600">
+                          {evaluatedCount}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Evaluated
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -600,15 +674,21 @@ export default function ClassroomDetailsPage() {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 rounded-lg bg-muted/50">
-                    <p className="text-2xl font-bold text-primary">{assignments.length}</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {assignments.length}
+                    </p>
                     <p className="text-xs text-muted-foreground">Total</p>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-muted/50">
-                    <p className="text-2xl font-bold text-green-600">{completedCount}</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {completedCount}
+                    </p>
                     <p className="text-xs text-muted-foreground">Completed</p>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-muted/50">
-                    <p className="text-2xl font-bold text-yellow-600">{evaluatedCount}</p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {evaluatedCount}
+                    </p>
                     <p className="text-xs text-muted-foreground">Evaluated</p>
                   </div>
                   <div className="text-center p-4 rounded-lg bg-muted/50">
@@ -622,17 +702,29 @@ export default function ClassroomDetailsPage() {
                 <Separator />
 
                 <div>
-                  <h3 className="text-sm font-medium mb-3">Submission Status Breakdown</h3>
+                  <h3 className="text-sm font-medium mb-3">
+                    Submission Status Breakdown
+                  </h3>
                   <div className="space-y-3">
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Not Submitted</span>
                         <span className="font-medium">
-                          {assignments.filter(a => a.submissionStatus === "NOT_SUBMITTED").length}
+                          {
+                            assignments.filter(
+                              (a) => a.submissionStatus === "NOT_SUBMITTED",
+                            ).length
+                          }
                         </span>
                       </div>
-                      <Progress 
-                        value={(assignments.filter(a => a.submissionStatus === "NOT_SUBMITTED").length / assignments.length) * 100} 
+                      <Progress
+                        value={
+                          (assignments.filter(
+                            (a) => a.submissionStatus === "NOT_SUBMITTED",
+                          ).length /
+                            assignments.length) *
+                          100
+                        }
                         className="h-2 bg-red-100 [&>div]:bg-red-600"
                       />
                     </div>
@@ -640,11 +732,21 @@ export default function ClassroomDetailsPage() {
                       <div className="flex justify-between text-sm mb-1">
                         <span>Submitted</span>
                         <span className="font-medium">
-                          {assignments.filter(a => a.submissionStatus === "SUBMITTED").length}
+                          {
+                            assignments.filter(
+                              (a) => a.submissionStatus === "SUBMITTED",
+                            ).length
+                          }
                         </span>
                       </div>
-                      <Progress 
-                        value={(assignments.filter(a => a.submissionStatus === "SUBMITTED").length / assignments.length) * 100} 
+                      <Progress
+                        value={
+                          (assignments.filter(
+                            (a) => a.submissionStatus === "SUBMITTED",
+                          ).length /
+                            assignments.length) *
+                          100
+                        }
                         className="h-2 bg-blue-100 [&>div]:bg-blue-600"
                       />
                     </div>
@@ -652,11 +754,21 @@ export default function ClassroomDetailsPage() {
                       <div className="flex justify-between text-sm mb-1">
                         <span>Evaluated</span>
                         <span className="font-medium">
-                          {assignments.filter(a => a.submissionStatus === "EVALUATED").length}
+                          {
+                            assignments.filter(
+                              (a) => a.submissionStatus === "EVALUATED",
+                            ).length
+                          }
                         </span>
                       </div>
-                      <Progress 
-                        value={(assignments.filter(a => a.submissionStatus === "EVALUATED").length / assignments.length) * 100} 
+                      <Progress
+                        value={
+                          (assignments.filter(
+                            (a) => a.submissionStatus === "EVALUATED",
+                          ).length /
+                            assignments.length) *
+                          100
+                        }
                         className="h-2 bg-green-100 [&>div]:bg-green-600"
                       />
                     </div>
@@ -667,16 +779,27 @@ export default function ClassroomDetailsPage() {
                   <>
                     <Separator />
                     <div>
-                      <h3 className="text-sm font-medium mb-3">Score Analysis</h3>
+                      <h3 className="text-sm font-medium mb-3">
+                        Score Analysis
+                      </h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg bg-muted/50">
-                          <p className="text-sm text-muted-foreground mb-1">Average Score</p>
-                          <p className="text-2xl font-bold text-primary">{averageScore.toFixed(1)}</p>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Average Score
+                          </p>
+                          <p className="text-2xl font-bold text-primary">
+                            {averageScore.toFixed(1)}
+                          </p>
                         </div>
                         <div className="p-4 rounded-lg bg-muted/50">
-                          <p className="text-sm text-muted-foreground mb-1">Total Marks</p>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Total Marks
+                          </p>
                           <p className="text-2xl font-bold text-primary">
-                            {assignments.reduce((acc, a) => acc + a.totalMarks, 0)}
+                            {assignments.reduce(
+                              (acc, a) => acc + a.totalMarks,
+                              0,
+                            )}
                           </p>
                         </div>
                       </div>
