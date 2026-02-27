@@ -498,7 +498,7 @@ export default function ClassroomDetailsPage() {
                         className="w-full gap-2 group-hover:translate-x-1 transition-transform"
                         variant={assignment.submissionStatus === "NOT_SUBMITTED" ? "default" : "outline"}
                       >
-                        <Link href={`/student/assignments/${assignment._id}`}>
+                        <Link href={`/student/assignments/${assignment._id}/start`}>
                           <BookOpen className="h-4 w-4" />
                           {assignment.submissionStatus === "NOT_SUBMITTED" 
                             ? "Start Assignment" 
