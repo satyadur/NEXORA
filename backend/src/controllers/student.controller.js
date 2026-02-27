@@ -81,14 +81,17 @@ export const getAssignmentDetailsForStudent = async (req, res) => {
 
     const assignment = await Assignment.findById(id);
 
-    if (!assignment || !assignment.isPublished)
+    if (!assignment || !assignment.isPublished) {
       return res.status(404).json({ message: "Assignment not available" });
+    }
 
     const questions = await Question.find({
       assignmentId: id,
-    });
+    })
+      .select("-correctAnswerIndex -correctAnswer -solutionExplanation");
 
     res.json({ assignment, questions });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
