@@ -57,7 +57,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -77,17 +76,9 @@ import {
   Filter,
   GraduationCap,
   BookOpen,
-  Calendar,
   Clock,
-  MoreVertical,
-  Download,
-  Upload,
-  AlertCircle,
   Loader2,
   DoorOpen,
-  UserPlus,
-  UserMinus,
-  RefreshCw,
 } from "lucide-react";
 
 export default function ClassRoomPage() {
@@ -107,7 +98,7 @@ export default function ClassRoomPage() {
   const [formData, setFormData] = useState({
     name: "",
     teacherId: "",
-    status: "ACTIVE" as "ACTIVE" | "INACTIVE",
+    status: "ACTIVE" as "ACTIVE" | "INACTIVE" | "COMPLETED",
   });
 
   /* ================= FETCH ================= */
@@ -226,6 +217,7 @@ export default function ClassRoomPage() {
     const total = classrooms.length;
     const active = classrooms.filter(c => c.status === "ACTIVE").length;
     const inactive = classrooms.filter(c => c.status === "INACTIVE").length;
+    const completed = classrooms.filter(c => c.status === "COMPLETED").length;
     const totalStudents = classrooms.reduce((acc, c) => acc + (c.students?.length || 0), 0);
     const avgStudentsPerClass = total > 0 ? (totalStudents / total).toFixed(1) : 0;
     const utilizationRate = total > 0 ? ((active / total) * 100).toFixed(1) : 0;
@@ -234,6 +226,7 @@ export default function ClassRoomPage() {
       total,
       active,
       inactive,
+      completed,
       totalStudents,
       avgStudentsPerClass,
       utilizationRate,
@@ -348,6 +341,7 @@ export default function ClassRoomPage() {
                   <SelectItem value="ALL">All Status</SelectItem>
                   <SelectItem value="ACTIVE">Active Only</SelectItem>
                   <SelectItem value="INACTIVE">Inactive Only</SelectItem>
+                  <SelectItem value="COMPLETED">Completed Only</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -586,6 +580,7 @@ function ClassroomCard({ classroom, onEdit, onDelete, onCopyInvite, copiedId }: 
             size="sm"
             className="flex-1"
             onClick={() => onEdit(classroom)}
+            disabled={classroom.status === "COMPLETED"}
           >
             <Pencil className="h-3 w-3 mr-2" />
             Edit
@@ -777,6 +772,12 @@ function ClassroomFormDialog({
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-gray-500" />
                       INACTIVE - No new enrollments
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="COMPLETED">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-blue-500" />
+                      COMPLETED - Classroom is complete
                     </div>
                   </SelectItem>
                 </SelectContent>

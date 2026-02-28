@@ -1,6 +1,13 @@
-import User from "../models/User.model.js"
-import Submission from "../models/Submission.model.js"
-import Course from "../models/Course.model.js"
+// import User from "../models/User.model.js"
+// import Submission from "../models/Submission.model.js"
+// import Course from "../models/Course.model.js"
+
+import User from "../models/User.model.js";
+import Submission from "../models/Submission.model.js";
+import Assignment from "../models/Assignment.model.js";
+import Course from "../models/Course.model.js";
+import CourseEnrollment from "../models/CourseEnrollment.model.js";
+import { QRCode } from "../models/User.model.js";
 
 /* ================= PUBLIC FACULTY ================= */
 export const getPublicFaculty = async (req, res) => {
@@ -322,6 +329,376 @@ export const searchCourses = async (req, res) => {
     res.status(500).json({ 
       success: false,
       message: error.message 
+    });
+  }
+};
+
+export const getCertificateVerification = async (req, res) => {
+  try {
+    const { uniqueId } = req.params;
+
+    if (!uniqueId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid certificate ID",
+      });
+    }
+
+    /* -----------------------------
+       Find Student (Public Fields Only)
+    ------------------------------ */
+
+    const student = await User.findOne({
+      $or: [{ uniqueId }, { enrollmentNumber: uniqueId }],
+      role: "STUDENT",
+    })
+      .select(
+        "name uniqueId enrollmentNumber avatar batch currentSemester cgpa backlogs " +
+          "education skills certificates placementStatus isPlacementEligible enrolledCourses"
+      )
+      .lean();
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    /* -----------------------------
+       Track QR Scan Access
+    ------------------------------ */
+
+    await QRCode.findOneAndUpdate(
+      { uniqueId },
+      {
+        $inc: { accessCount: 1 },
+        lastAccessed: new Date(),
+        $push: {
+          accessLogs: {
+            timestamp: new Date(),
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
+            referrer: req.get("referer"),
+          },
+        },
+      },
+      { upsert: true }
+    );
+
+    /* -----------------------------
+       Fetch Submissions
+    ------------------------------ */
+
+    const submissions = await Submission.find({
+      studentId: student._id,
+    })
+      .populate({
+        path: "assignmentId",
+        select: "title totalMarks classroomId",
+        populate: {
+          path: "classroomId",
+          select: "name",
+        },
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    /* -----------------------------
+       Fetch Course Enrollments
+    ------------------------------ */
+
+    const enrollments = await CourseEnrollment.find({
+      studentId: student._id,
+    })
+      .populate({
+        path: "courseId",
+        select: "title code credits level department thumbnail",
+      })
+      .sort({ enrollmentDate: -1 })
+      .lean();
+
+    /* -----------------------------
+       Format Submissions
+    ------------------------------ */
+
+    const formattedSubmissions = submissions.map((sub) => {
+      const totalMarks = sub.assignmentId?.totalMarks || 0;
+      const obtained = sub.totalScore || 0;
+
+      const percentage =
+        totalMarks > 0 ? ((obtained / totalMarks) * 100).toFixed(2) : 0;
+
+      return {
+        _id: sub._id,
+        assignmentId: sub.assignmentId?._id,
+        assignmentTitle: sub.assignmentId?.title || "Unknown Assignment",
+        classroomName: sub.assignmentId?.classroomId?.name || "Unknown Class",
+        totalMarks,
+        obtainedMarks: obtained,
+        percentage: Number(percentage),
+        status: sub.status,
+        submittedAt: sub.createdAt,
+        feedback: sub.feedback,
+      };
+    });
+
+    /* -----------------------------
+       Assignment Statistics
+    ------------------------------ */
+
+    const assignmentStats = {
+      totalAssignments: formattedSubmissions.length,
+      submittedCount: formattedSubmissions.filter(
+        (s) => s.status === "SUBMITTED"
+      ).length,
+
+      evaluatedCount: formattedSubmissions.filter(
+        (s) => s.status === "EVALUATED"
+      ).length,
+
+      averageScore:
+        formattedSubmissions.length > 0
+          ? (
+              formattedSubmissions.reduce(
+                (sum, s) => sum + Number(s.percentage || 0),
+                0
+              ) / formattedSubmissions.length
+            ).toFixed(2)
+          : 0,
+
+      totalObtainedMarks: formattedSubmissions.reduce(
+        (sum, s) => sum + (s.obtainedMarks || 0),
+        0
+      ),
+
+      totalPossibleMarks: formattedSubmissions.reduce(
+        (sum, s) => sum + (s.totalMarks || 0),
+        0
+      ),
+    };
+
+    /* -----------------------------
+       Format Course Enrollments
+    ------------------------------ */
+
+    const formattedEnrollments = enrollments.map((en) => ({
+      _id: en._id,
+      courseId: en.courseId?._id,
+      courseTitle: en.courseId?.title,
+      courseCode: en.courseId?.code,
+      credits: en.courseId?.credits,
+      level: en.courseId?.level,
+      department: en.courseId?.department,
+      thumbnail: en.courseId?.thumbnail,
+      enrollmentDate: en.enrollmentDate,
+      status: en.status,
+      progress: en.progress?.overallProgress || 0,
+      grade: en.finalGrade,
+      percentage: en.finalPercentage,
+      completionDate: en.completionDate,
+      certificateIssued: en.certificateIssued,
+      certificateUrl: en.certificateUrl,
+    }));
+
+    /* -----------------------------
+       Course Statistics
+    ------------------------------ */
+
+    const courseStats = {
+      totalEnrolled: formattedEnrollments.length,
+      completed: formattedEnrollments.filter((c) => c.status === "completed")
+        .length,
+      inProgress: formattedEnrollments.filter((c) => c.status === "in_progress")
+        .length,
+      dropped: formattedEnrollments.filter((c) => c.status === "dropped")
+        .length,
+    };
+
+    /* -----------------------------
+       Public Certificates
+    ------------------------------ */
+
+    const formattedCertificates = (student.certificates || [])
+      .filter((cert) => cert.isPublic)
+      .map((cert) => ({
+        _id: cert._id,
+        type: cert.type,
+        title: cert.title,
+        description: cert.description,
+        issueDate: cert.issueDate,
+        expiryDate: cert.expiryDate,
+        url: cert.url,
+        qrCode: cert.qrCode,
+        metadata: cert.metadata,
+      }));
+
+    /* -----------------------------
+       Assignment Certificates
+    ------------------------------ */
+
+    const assignmentCertificates = formattedSubmissions
+      .filter((sub) => sub.percentage >= 70)
+      .map((sub) => ({
+        _id: `sub_${sub._id}`,
+        type: "ASSIGNMENT",
+        title: `Achievement: ${sub.assignmentTitle}`,
+        description: `Scored ${sub.obtainedMarks}/${sub.totalMarks} (${sub.percentage}%)`,
+        issueDate: sub.submittedAt,
+        metadata: {
+          assignmentId: sub.assignmentId,
+          score: sub.obtainedMarks,
+          maxScore: sub.totalMarks,
+          percentage: sub.percentage,
+        },
+      }));
+
+    /* -----------------------------
+       Course Completion Certificates
+    ------------------------------ */
+
+    const courseCompletionCertificates = formattedEnrollments
+      .filter((en) => en.status === "completed" && en.certificateIssued)
+      .map((en) => ({
+        _id: `course_${en._id}`,
+        type: "COURSE_COMPLETION",
+        title: `Course Completion: ${en.courseTitle}`,
+        description: `Completed ${en.courseTitle} with ${
+          en.grade || "Pass"
+        }`,
+        issueDate: en.completionDate,
+        url: en.certificateUrl,
+        metadata: {
+          courseId: en.courseId,
+          grade: en.grade,
+          percentage: en.percentage,
+          credits: en.credits,
+        },
+      }));
+
+    /* -----------------------------
+       Combine Certificates
+    ------------------------------ */
+
+    const allCertificates = [
+      ...formattedCertificates,
+      ...assignmentCertificates,
+      ...courseCompletionCertificates,
+    ].sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+
+    /* -----------------------------
+       Final Response
+    ------------------------------ */
+
+    res.json({
+      success: true,
+
+      student: {
+        _id: student._id,
+        name: student.name,
+        uniqueId: student.uniqueId,
+        enrollmentNumber: student.enrollmentNumber,
+        avatar: student.avatar,
+        batch: student.batch,
+        currentSemester: student.currentSemester,
+        cgpa: student.cgpa,
+        backlogs: student.backlogs || 0,
+        placementStatus: student.placementStatus,
+        isPlacementEligible: student.isPlacementEligible,
+
+        education: student.education,
+        skills: student.skills,
+
+        stats: {
+          cgpa: student.cgpa,
+          backlogs: student.backlogs || 0,
+          totalCertificates: allCertificates.length,
+          ...assignmentStats,
+          ...courseStats,
+        },
+      },
+
+      assignments: formattedSubmissions,
+
+      courses: {
+        detailed: formattedEnrollments,
+      },
+
+      certificates: allCertificates,
+
+      verification: {
+        verifiedAt: new Date().toISOString(),
+        method: "QR_CODE",
+        uniqueId,
+        issuedBy: "NX Institute",
+        isAuthentic: true,
+      },
+    });
+  } catch (error) {
+    console.error("Certificate verification error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
+    });
+  }
+};
+
+/**
+ * Quick verification - returns minimal info
+ * @route GET /api/public/verify/:uniqueId/quick
+ */
+export const quickVerifyCertificate = async (req, res) => {
+  try {
+    const { uniqueId } = req.params;
+
+    const student = await User.findOne({
+      $or: [
+        { uniqueId: uniqueId },
+        { enrollmentNumber: uniqueId }
+      ],
+      role: "STUDENT"
+    }).select("name uniqueId enrollmentNumber batch avatar");
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found"
+      });
+    }
+
+    // Get certificate count
+    const certificateCount = (student.certificates?.filter(c => c.isPublic)?.length || 0) +
+      (await CourseEnrollment.countDocuments({ 
+        studentId: student._id, 
+        status: "completed",
+        certificateIssued: true 
+      }));
+
+    res.json({
+      success: true,
+      student: {
+        name: student.name,
+        uniqueId: student.uniqueId,
+        enrollmentNumber: student.enrollmentNumber,
+        batch: student.batch,
+        avatar: student.avatar
+      },
+      stats: {
+        certificatesIssued: certificateCount
+      },
+      verificationUrl: `${process.env.FRONTEND_URL}/verify/${student.uniqueId}`
+    });
+
+  } catch (error) {
+    console.error("Quick verification error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error"
     });
   }
 };

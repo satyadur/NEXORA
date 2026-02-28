@@ -12,6 +12,7 @@ import {
   IconCalendarStats,
   IconSettings,
   IconBook,
+  IconCertificate,
 } from "@tabler/icons-react";
 
 export const adminData: SidebarData = {
@@ -115,10 +116,10 @@ export const adminData: SidebarData = {
       url: "/admin/attendance",
       icon: IconCalendarStats,
     },
-    // {
-    //   title: "Settings",
-    //   url: "/admin/settings",
-    //   icon: IconSettings,
-    // },
+    {
+      title: "Certificates",
+      url: "/admin/certificates",
+      icon: IconCertificate,
+    },
   ],
 };

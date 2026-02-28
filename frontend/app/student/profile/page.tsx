@@ -80,6 +80,7 @@ import {
   FileText,
   Medal,
   Star,
+  IdCard,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -703,7 +704,7 @@ const StudentProfile = () => {
                       {user.enrollmentNumber && (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <BookOpen className="h-4 w-4" />
-                          <span>Enrollment: {user.enrollmentNumber}</span>
+                          <span>Enrollment: {user.uniqueId}</span>
                         </div>
                       )}
                     </div>
@@ -1519,6 +1520,21 @@ const StudentProfile = () => {
                     <CardTitle className="text-lg">Personal Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                     <div className="flex items-start gap-3">
+                      <IdCard className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">ID</p>
+                        <p className="font-medium">{user.uniqueId}</p>
+                      </div>
+                    </div>
+                    {/* enrollmentNumber */}
+                    <div className="flex items-start gap-3">
+                      <IdCard className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Enrollment ID</p>
+                        <p className="font-medium">{user.enrollmentNumber}</p>
+                      </div>
+                    </div>
                     <div className="flex items-start gap-3">
                       <UserCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                       <div>

@@ -8,7 +8,9 @@ const generateStudentUniqueId = (courseCode) => {
   const prefix = "NX";
   const year = new Date().getFullYear().toString().slice(-2);
   const random = crypto.randomBytes(3).toString("hex").toUpperCase();
-  const coursePrefix = courseCode ? courseCode.slice(0, 3).toUpperCase() : "GEN";
+  const coursePrefix = courseCode
+    ? courseCode.slice(0, 3).toUpperCase()
+    : "GEN";
   return `${prefix}${year}${coursePrefix}${random}`;
 };
 
@@ -289,7 +291,7 @@ const employeeRecordSchema = new mongoose.Schema(
     // 👇 ADD SHIFT TIMINGS HERE (right after performanceReviews)
     shiftTimings: {
       start: { type: String, default: "09:00" }, // "09:00"
-      end: { type: String, default: "17:00" },   // "17:00"
+      end: { type: String, default: "17:00" }, // "17:00"
       gracePeriod: { type: Number, default: 15 }, // minutes
       workingHours: { type: Number, default: 8 }, // hours
     },
@@ -298,21 +300,24 @@ const employeeRecordSchema = new mongoose.Schema(
 );
 
 // Student Course Enrollment Schema (for tracking enrolled courses)
-const studentCourseSchema = new mongoose.Schema({
-  courseId: { type: mongoose.Schema.Types.ObjectId, ref: "Course" },
-  courseCode: String,
-  courseName: String,
-  enrollmentDate: { type: Date, default: Date.now },
-  status: {
-    type: String,
-    enum: ["enrolled", "in_progress", "completed", "dropped"],
-    default: "enrolled",
+const studentCourseSchema = new mongoose.Schema(
+  {
+    courseId: { type: mongoose.Schema.Types.ObjectId, ref: "Course" },
+    courseCode: String,
+    courseName: String,
+    enrollmentDate: { type: Date, default: Date.now },
+    status: {
+      type: String,
+      enum: ["enrolled", "in_progress", "completed", "dropped"],
+      default: "enrolled",
+    },
+    grade: String,
+    percentage: Number,
+    completionDate: Date,
+    certificateIssued: { type: Boolean, default: false },
   },
-  grade: String,
-  percentage: Number,
-  completionDate: Date,
-  certificateIssued: { type: Boolean, default: false },
-}, { _id: false });
+  { _id: false },
+);
 
 // QR Code Schema for public profile access
 const qrCodeSchema = new mongoose.Schema({
@@ -325,6 +330,18 @@ const qrCodeSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   accessCount: { type: Number, default: 0 },
   lastAccessed: Date,
+  accessLogs: [
+    {
+      timestamp: Date,
+      ip: String,
+      userAgent: String,
+      referrer: String,
+      location: {
+        country: String,
+        city: String,
+      },
+    },
+  ],
 });
 
 // Main User Schema
@@ -380,7 +397,7 @@ const userSchema = new mongoose.Schema(
     currentSemester: String,
     cgpa: Number,
     backlogs: { type: Number, default: 0 },
-    
+
     // Courses the student is enrolled in
     enrolledCourses: [studentCourseSchema],
 
@@ -555,7 +572,7 @@ userSchema.methods.enrollInCourse = function (course, courseCode, courseName) {
 
   // Check if already enrolled
   const alreadyEnrolled = this.enrolledCourses.some(
-    (c) => c.courseId.toString() === course._id.toString()
+    (c) => c.courseId.toString() === course._id.toString(),
   );
 
   if (alreadyEnrolled) {

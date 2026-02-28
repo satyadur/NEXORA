@@ -1131,3 +1131,17 @@ export const getPayrollSummaryApi = async (
   return res.data;
 };
 
+export interface IssueCertificatesPayload {
+  studentIds: string[]
+  title: string
+  description?: string
+  type: "ASSIGNMENT" | "COURSE_COMPLETION" | "ACHIEVEMENT"
+  score?: number
+}
+
+export const issueCertificatesBulkApi = async (
+  data: IssueCertificatesPayload
+) => {
+  const res = await api.post("/admin/certificates/bulk-issue", data)
+  return res.data
+}

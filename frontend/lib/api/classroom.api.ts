@@ -19,7 +19,7 @@ export interface Classroom {
     email: string
   }[]
   inviteCode?: string
-  status: "ACTIVE" | "INACTIVE"
+  status: "ACTIVE" | "INACTIVE" | "COMPLETED"
   createdAt: string
   updatedAt: string
 }

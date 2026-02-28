@@ -1,5 +1,7 @@
 import Classroom from "../models/Classroom.model.js";
 import User from "../models/User.model.js";
+import QRCode from "qrcode";
+import crypto from "crypto";
 
 /* Create Classroom */
 export const createClassroom = async (req, res) => {
@@ -31,8 +33,9 @@ export const getAllClassrooms = async (req, res) => {
   try {
     const classrooms = await Classroom.find()
       .populate("teacher", "name email")
-      .populate("students", "name email").sort({ createdAt: -1 });
-console.log(classrooms);
+      .populate("students", "name email")
+      .sort({ createdAt: -1 });
+    console.log(classrooms);
 
     res.json(classrooms);
   } catch (err) {
@@ -54,38 +57,105 @@ export const addStudentToClassroom = async (req, res) => {
   }
 };
 
+const generateCertificateId = () => {
+  const prefix = "NX-CERT";
+  const year = new Date().getFullYear();
+  const random = crypto.randomBytes(3).toString("hex").toUpperCase();
+  return `${prefix}-${year}-${random}`;
+};
+
 /* UPDATE CLASSROOM */
 export const updateClassroom = async (req, res) => {
   try {
     const { name, teacher, status } = req.body;
 
-    const classroom = await Classroom.findById(req.params.id);
+    const classroom = await Classroom.findById(req.params.id).populate(
+      "students",
+    );
 
     if (!classroom) {
       return res.status(404).json({ message: "Classroom not found" });
     }
 
+    /* -------------------------
+       Validate Teacher
+    ------------------------- */
+
     if (teacher) {
       const teacherExists = await User.findById(teacher);
+
       if (!teacherExists || teacherExists.role !== "TEACHER") {
         return res.status(400).json({ message: "Invalid teacher selected" });
       }
+
       classroom.teacher = teacher;
     }
 
+    /* -------------------------
+       Update Classroom Name
+    ------------------------- */
+
     if (name) classroom.name = name;
+
+    /* -------------------------
+       Issue Certificates
+    ------------------------- */
+
+    if (status && status === "COMPLETED" && classroom.status !== "COMPLETED") {
+      const students = classroom.students;
+
+      for (const student of students) {
+        const certificateExists = await User.findOne({
+          _id: student._id,
+          "certificates.metadata.classroomId": classroom._id,
+        });
+
+        if (!certificateExists) {
+          const certificateId = generateCertificateId();
+
+          const verificationUrl = `${process.env.FRONTEND_URL}/verify/cert/${certificateId}`;
+
+          const qrImage = await QRCode.toDataURL(verificationUrl);
+
+          await User.findByIdAndUpdate(student._id, {
+            $push: {
+              certificates: {
+                type: "COURSE_COMPLETION",
+                title: classroom.name,
+                description: `Successfully completed ${classroom.name}`,
+                issueDate: new Date(),
+                qrCode: qrImage,
+                isPublic: true,
+                metadata: {
+                  classroomId: classroom._id,
+                  issuedBy: req.user?.id,
+                },
+              },
+            },
+          });
+        }
+      }
+    }
+
+    /* -------------------------
+       Update Status
+    ------------------------- */
+
     if (status) classroom.status = status;
 
     await classroom.save();
 
     const populated = await classroom.populate("teacher", "name email");
 
-    res.json(populated);
+    res.json({
+      success: true,
+      message: "Classroom updated successfully",
+      classroom: populated,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
-
 
 /* DELETE CLASSROOM */
 export const deleteClassroom = async (req, res) => {

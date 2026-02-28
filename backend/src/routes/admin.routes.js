@@ -69,6 +69,7 @@ import {
   getAttendanceStats,
   checkExistingAttendances,
 } from "../controllers/admin.manage.attendance.controller.js";
+import { issueCertificatesBulk } from "../controllers/admin.certificate.controller.js";
 
 const router = express.Router();
 
@@ -421,5 +422,10 @@ router.get(
 
 // Check existing attendances for bulk operation
 router.get("/attendance/check", authMiddleware, roleMiddleware("ADMIN"), checkExistingAttendances);
-
+router.post(
+  "/certificates/bulk-issue",
+  authMiddleware,
+  roleMiddleware("ADMIN"),
+  issueCertificatesBulk
+);
 export default router;

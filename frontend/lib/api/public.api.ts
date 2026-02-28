@@ -122,3 +122,35 @@ export const getTopStudentsApi = async () => {
   const res = await api.get("/public/top-students");
   return res.data;
 };
+
+// lib/api/public.api.ts
+
+export interface VerifyCertificateResponse {
+  success: boolean;
+  student: any; // Use the types from above
+  assignments: any[];
+  courses: {
+    enrolled: any[];
+    detailed: any[];
+  };
+  certificates: any[];
+  verification: {
+    verifiedAt: string;
+    method: string;
+    uniqueId: string;
+    isAuthentic: boolean;
+  };
+}
+
+export const verifyCertificateApi = async (
+  uniqueId: string
+): Promise<VerifyCertificateResponse> => {
+  const res = await api.get(`/public/verify/${uniqueId}`);
+  return res.data;
+};
+
+// Quick verification
+export const quickVerifyCertificateApi = async (uniqueId: string) => {
+  const res = await api.get(`/public/verify/${uniqueId}/quick`);
+  return res.data;
+};
