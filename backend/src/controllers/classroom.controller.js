@@ -2,6 +2,7 @@ import Classroom from "../models/Classroom.model.js";
 import User from "../models/User.model.js";
 import QRCode from "qrcode";
 import crypto from "crypto";
+import { generateCertificatePdf } from "../utils/generateCertificate.js";
 
 /* Create Classroom */
 export const createClassroom = async (req, res) => {
@@ -57,21 +58,26 @@ export const addStudentToClassroom = async (req, res) => {
   }
 };
 
-const generateCertificateId = () => {
-  const prefix = "NX-CERT";
-  const year = new Date().getFullYear();
-  const random = crypto.randomBytes(3).toString("hex").toUpperCase();
-  return `${prefix}-${year}-${random}`;
-};
+// const generateCertificateId = () => {
+//   const prefix = "NX-CERT";
+//   const year = new Date().getFullYear();
+//   const random = crypto.randomBytes(3).toString("hex").toUpperCase();
+//   return `${prefix}-${year}-${random}`;
+// };
 
 /* UPDATE CLASSROOM */
+const generateCertificateId = () => {
+  const year = new Date().getFullYear();
+  const random = crypto.randomBytes(3).toString("hex").toUpperCase();
+  return `NX-CERT-${year}-${random}`;
+};
+
 export const updateClassroom = async (req, res) => {
   try {
     const { name, teacher, status } = req.body;
 
-    const classroom = await Classroom.findById(req.params.id).populate(
-      "students",
-    );
+    const classroom = await Classroom.findById(req.params.id)
+      .populate("students");
 
     if (!classroom) {
       return res.status(404).json({ message: "Classroom not found" });
@@ -101,29 +107,37 @@ export const updateClassroom = async (req, res) => {
        Issue Certificates
     ------------------------- */
 
-    if (status && status === "COMPLETED" && classroom.status !== "COMPLETED") {
-      const students = classroom.students;
+    if (status === "COMPLETED" && classroom.status !== "COMPLETED") {
 
-      for (const student of students) {
-        const certificateExists = await User.findOne({
-          _id: student._id,
-          "certificates.metadata.classroomId": classroom._id,
-        });
+      for (const student of classroom.students) {
 
-        if (!certificateExists) {
+        const existing = student.certificates?.find(
+          (cert) => cert.metadata?.classroomId?.toString() === classroom._id.toString()
+        );
+
+        if (!existing) {
+
           const certificateId = generateCertificateId();
 
-          const verificationUrl = `${process.env.FRONTEND_URL}/verify/cert/${certificateId}`;
+          const verificationUrl =
+            `${process.env.FRONTEND_URL}/verify/cert/${certificateId}`;
 
           const qrImage = await QRCode.toDataURL(verificationUrl);
-
+const certificateUrl = await generateCertificatePdf({
+  studentName: student.name,
+  courseName: classroom.name,
+  certificateId,
+  qrCode: qrImage,
+});
           await User.findByIdAndUpdate(student._id, {
             $push: {
               certificates: {
+                certificateId,
                 type: "COURSE_COMPLETION",
                 title: classroom.name,
                 description: `Successfully completed ${classroom.name}`,
                 issueDate: new Date(),
+                url: certificateUrl,
                 qrCode: qrImage,
                 isPublic: true,
                 metadata: {
@@ -133,6 +147,7 @@ export const updateClassroom = async (req, res) => {
               },
             },
           });
+
         }
       }
     }
@@ -152,6 +167,7 @@ export const updateClassroom = async (req, res) => {
       message: "Classroom updated successfully",
       classroom: populated,
     });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

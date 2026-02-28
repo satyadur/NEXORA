@@ -702,3 +702,76 @@ export const quickVerifyCertificate = async (req, res) => {
     });
   }
 };
+
+export const verifyCertificateById = async (req, res) => {
+  try {
+    const { certificateId } = req.params;
+
+    if (!certificateId) {
+      return res.status(400).json({
+        success: false,
+        message: "Certificate ID required",
+      });
+    }
+
+    const student = await User.findOne({
+      "certificates.certificateId": certificateId,
+    }).select(
+      "name uniqueId enrollmentNumber avatar batch certificates"
+    );
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found",
+      });
+    }
+
+    const certificate = student.certificates.find(
+      (c) => c.certificateId === certificateId
+    );
+
+    if (!certificate) {
+      return res.status(404).json({
+        success: false,
+        message: "Certificate not found",
+      });
+    }
+
+    res.json({
+      success: true,
+
+      student: {
+        name: student.name,
+        uniqueId: student.uniqueId,
+        enrollmentNumber: student.enrollmentNumber,
+        avatar: student.avatar,
+        batch: student.batch,
+      },
+
+      certificate: {
+        certificateId: certificate.certificateId,
+        title: certificate.title,
+        description: certificate.description,
+        type: certificate.type,
+        issueDate: certificate.issueDate,
+        qrCode: certificate.qrCode,
+        url: certificate.url,
+      },
+
+      verification: {
+        verifiedAt: new Date(),
+        certificateId,
+        issuedBy: "NX Institute",
+        isAuthentic: true,
+      },
+    });
+  } catch (error) {
+    console.error("Certificate verification error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};

@@ -909,7 +909,7 @@ export default function CertificateVerificationClient() {
                         </div>
                       )}
                       
-                      {/* {cert.qrCode && (
+                      {cert.qrCode && (
                         <div className="mt-4">
                           <p className="text-xs text-gray-500 mb-2">QR Code</p>
                           <img 
@@ -918,11 +918,11 @@ export default function CertificateVerificationClient() {
                             className="w-20 h-20 border border-gray-200 rounded"
                           />
                         </div>
-                      )} */}
+                      )}
                       
                       {cert.url && (
                         <a
-                          href={cert.url}
+                          href={`${process.env.NEXT_PUBLIC_API_URL}${cert.url}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="mt-4 inline-flex items-center text-sm text-blue-600 hover:text-blue-700"

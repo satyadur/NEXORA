@@ -1,31 +1,31 @@
-import api from "./axios"
+import api from "./axios";
 
 /* ================= PUBLIC FACULTY ================= */
 
 export interface PublicFaculty {
-  _id: string
-  name: string
-  avatar?: string
+  _id: string;
+  name: string;
+  avatar?: string;
 }
 
 export const getPublicFaculty = async (): Promise<PublicFaculty[]> => {
-  const res = await api.get("/public/faculty")
-  return res.data
-}
+  const res = await api.get("/public/faculty");
+  return res.data;
+};
 
 /* ================= TOP STUDENTS ================= */
 
 export interface TopStudent {
-  _id: string
-  name: string
-  avatar?: string
-  averageScore: number
+  _id: string;
+  name: string;
+  avatar?: string;
+  averageScore: number;
 }
 
 export const getTopStudents = async (): Promise<TopStudent[]> => {
-  const res = await api.get("/public/top-students")
-  return res.data
-}
+  const res = await api.get("/public/top-students");
+  return res.data;
+};
 
 export interface Package {
   id: string;
@@ -54,7 +54,7 @@ export const getPackagesApi = async (): Promise<PackagesResponse> => {
 
 // Fetch popular courses
 export const getPopularCoursesApi = async (limit?: number) => {
-  const params = limit ? `?limit=${limit}` : '';
+  const params = limit ? `?limit=${limit}` : "";
   const res = await api.get(`/public/courses/popular${params}`);
   return res.data;
 };
@@ -73,7 +73,7 @@ export const getCoursesApi = async (params?: {
   if (params?.page) queryParams.append("page", params.page.toString());
   if (params?.limit) queryParams.append("limit", params.limit.toString());
   if (params?.status) queryParams.append("status", params.status);
-  
+
   // FIX: Use /public/courses instead of /courses
   const res = await api.get(`/public/courses?${queryParams.toString()}`);
   return res.data;
@@ -86,9 +86,14 @@ export const getCourseByIdApi = async (id: string) => {
 };
 
 // Fetch courses by department - FIXED URL
-export const getCoursesByDepartmentApi = async (department: string, level?: string) => {
-  const params = level ? `?level=${level}` : '';
-  const res = await api.get(`/public/courses/department/${department}${params}`);
+export const getCoursesByDepartmentApi = async (
+  department: string,
+  level?: string,
+) => {
+  const params = level ? `?level=${level}` : "";
+  const res = await api.get(
+    `/public/courses/department/${department}${params}`,
+  );
   return res.data;
 };
 
@@ -104,9 +109,11 @@ export const searchCoursesApi = async (params: {
   if (params.q) queryParams.append("q", params.q);
   if (params.department) queryParams.append("department", params.department);
   if (params.level) queryParams.append("level", params.level);
-  if (params.minPrice) queryParams.append("minPrice", params.minPrice.toString());
-  if (params.maxPrice) queryParams.append("maxPrice", params.maxPrice.toString());
-  
+  if (params.minPrice)
+    queryParams.append("minPrice", params.minPrice.toString());
+  if (params.maxPrice)
+    queryParams.append("maxPrice", params.maxPrice.toString());
+
   const res = await api.get(`/public/courses/search?${queryParams.toString()}`);
   return res.data;
 };
@@ -143,7 +150,7 @@ export interface VerifyCertificateResponse {
 }
 
 export const verifyCertificateApi = async (
-  uniqueId: string
+  uniqueId: string,
 ): Promise<VerifyCertificateResponse> => {
   const res = await api.get(`/public/verify/${uniqueId}`);
   return res.data;
@@ -152,5 +159,11 @@ export const verifyCertificateApi = async (
 // Quick verification
 export const quickVerifyCertificateApi = async (uniqueId: string) => {
   const res = await api.get(`/public/verify/${uniqueId}/quick`);
+  return res.data;
+};
+
+export const verifyCertificateByIdApi = async (certificateId: string) => {
+  const res = await api.get(`/public/verify/cert/${certificateId}`);
+
   return res.data;
 };

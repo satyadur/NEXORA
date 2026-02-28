@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import path from "path";
 
 import authRoutes from "./routes/auth.routes.js";
 import assignmentRoutes from "./routes/assignment.routes.js";
@@ -21,6 +22,10 @@ app.use(cors());
 app.use(helmet());
 app.use(morgan("dev"));
 
+app.use(
+  "/api/certificates",
+  express.static(path.join(process.cwd(), "public", "certificates"))
+);
 app.use("/api/auth", authRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/submissions", submissionRoutes);

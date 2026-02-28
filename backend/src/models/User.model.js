@@ -172,32 +172,41 @@ const academicRecordSchema = new mongoose.Schema(
 
 // Certificate Schema (for achievements, assignments, etc.)
 const certificateSchema = new mongoose.Schema(
-  {
-    type: {
-      type: String,
-      enum: [
-        "ASSIGNMENT",
-        "COURSE_COMPLETION",
-        "ACHIEVEMENT",
-        "INTERNSHIP",
-        "PLACEMENT",
-      ],
-    },
-    title: String,
-    description: String,
-    issueDate: Date,
-    expiryDate: Date,
-    url: String,
-    qrCode: String,
-    metadata: {
-      assignmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Assignment" },
-      score: Number,
-      grade: String,
-      issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    },
-    isPublic: { type: Boolean, default: false },
+{
+  certificateId: {
+    type: String,
+    required: true,
+    unique: true
   },
-  { timestamps: true },
+
+  type: {
+    type: String,
+    enum: [
+      "ASSIGNMENT",
+      "COURSE_COMPLETION",
+      "ACHIEVEMENT",
+      "INTERNSHIP",
+      "PLACEMENT",
+    ],
+  },
+
+  title: String,
+  description: String,
+  issueDate: Date,
+  expiryDate: Date,
+  url: String,
+  qrCode: String,
+
+  metadata: {
+    assignmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Assignment" },
+    score: Number,
+    grade: String,
+    issuedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  },
+
+  isPublic: { type: Boolean, default: false },
+},
+{ timestamps: true }
 );
 
 // Employee Record Schema (for teachers and faculty)

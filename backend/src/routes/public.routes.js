@@ -8,7 +8,8 @@ import {
   getPopularCourses,
   getCoursePackages,
   searchCourses,
-  getCertificateVerification
+  getCertificateVerification,
+  verifyCertificateById
 } from "../controllers/public.controller.js"
 
 const router = express.Router()
@@ -25,5 +26,6 @@ router.get("/courses/search", searchCourses)
 router.get("/courses/:id", getCourseById)
 router.get("/courses/department/:department", getCoursesByDepartment)
 router.get("/verify/:uniqueId", getCertificateVerification);
+router.get("/verify/cert/:certificateId", verifyCertificateById);
 
 export default router
